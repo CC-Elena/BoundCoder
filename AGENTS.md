@@ -45,6 +45,67 @@
 * 最低读取集为 `docs/coach-state.md` 加最近一条相关学习笔记。
 * 只有在发现状态不一致或阶段发生切换时，才回读全部文档。
 
+## 进度真相与冲突处理
+
+### 唯一正式进度源
+
+`docs/learning-state.md` 是学习进度的唯一事实来源（Source of Truth）。
+
+以下信息只能以 `docs/learning-state.md` 为准：
+
+* 当前里程碑
+* 当前课程
+* 当前状态
+* 已完成项
+* 当前阻塞
+* 下一个单一任务
+* 是否允许进入下一阶段
+
+`docs/coach-state.md` 只是快速恢复摘要，不得维护独立进度，不得出现与 `learning-state.md` 不一致的新任务或阶段结论。
+
+### 状态冲突处理
+
+如果 `docs/coach-state.md`、学习笔记、代码现状与 `docs/learning-state.md` 存在冲突：
+
+1. 不允许推进到更高阶段。
+2. 以 `docs/learning-state.md` 为正式依据。
+3. 明确指出冲突内容。
+4. 先让学习者确认真实进度。
+5. 仅在确认后同步更新 `docs/coach-state.md`。
+6. 未完成同步前，不得开始新的里程碑任务。
+
+### 阶段流转规则
+
+每个里程碑只能按以下状态流转：
+
+```text
+not_started
+→ in_progress
+→ pending_checkpoint
+→ passed
+→ locked
+```
+
+规则：
+
+* `not_started`：尚未开始。
+* `in_progress`：正在学习和实现。
+* `pending_checkpoint`：代码和笔记已完成，等待阶段验收。
+* `passed`：通过验收，可以进入下一阶段。
+* `locked`：已通过的历史阶段；除非修复回归问题，否则不重新打开。
+
+教练不得因为代码已经存在，就直接将阶段标记为 `passed`。
+
+只有完成 Checkpoint 后，才允许从当前阶段进入下一阶段。
+
+### Next Single Task 规则
+
+每次会话只能围绕 `docs/learning-state.md` 中的 `Next Single Task` 推进。
+
+教练不得擅自扩展为额外功能、额外阶段或高级主题。
+
+任何不属于当前任务的新想法必须写入 `docs/backlog.md`，不得打断当前任务。
+
 ## 教学模式
 
 默认以教学为主，而不是直接代做实现。

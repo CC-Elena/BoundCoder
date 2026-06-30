@@ -1,42 +1,45 @@
 <!-- 教练状态页：这是长期辅导的单一事实来源。每次会话开始先读这里，用于快速恢复上下文；详细信息再回到 learning-state、learning-notes 和 backlog。 -->
-# 教练状态总览
+<!-- 快速恢复入口。正式学习进度以 docs/learning-state.md 为准。 -->
 
-## 当前阶段
+# Coach State
 
-- 里程碑：P1 — 最小 Agent Loop
-- 当前课程：P1.2 — 工具调用结果回灌
-- 会话状态：进行中
+> 本文件仅用于快速恢复会话。
+> 当前阶段、当前任务和是否允许升级阶段，必须以 `docs/learning-state.md` 为准。
 
-## 最近完成
+## Quick Snapshot
 
-- 已明确项目目标与架构分层
-- 已创建 monorepo 骨架
-- 已定义 `ToolCall`、`ToolResult` 和 `AgentState`
+* current_phase: P0 — 项目基础
+* current_lesson: P0.1 — 仓库结构与架构边界
+* status: in_progress
 
-## 当前阻塞
+## Next Single Task
 
-- 工具结果应当使用什么样的消息结构表示？
-- max-step 保护应该放在循环里，还是放在状态机里？
+读取 `docs/learning-state.md` 中的 `Next Single Task`。
 
-## 当前单一推荐任务
+当前任务：
 
-实现 `runAgentLoop()`，使用一个假的模型适配器和一个假的工具，暂时不要接入真实 LLM。
+设计 BoundCoder 的初始仓库结构，并说明 `agent-core`、`tools`、`policy`、`harness`、`trace`、`shared` 的职责边界。
 
-原因：这是 P1 的最小闭环；只有先打通模型调用、工具执行和结果回灌，后续的终止条件、测试和状态机拆分才有稳定落点。
+暂时不要实现 Agent Loop。
 
-## 下次打开先做什么
+## Next Session First Action
 
-先画出一次完整的 loop 流程：输入上下文、模型返回工具调用、执行工具、回灌结果、继续或终止；然后再动手写 `runAgentLoop()` 的骨架。
+按以下顺序阅读：
 
-## 最近证据
+1. `AGENTS.md`
+2. `docs/coach-state.md`
+3. `docs/learning-state.md`
+4. `docs/milestone-rubric.md` 中 P0 部分
 
-- 项目方向和课程分层已建立。
-- 当前目标已明确到 P1.2。
-- 下一步实现任务已经收敛到单个函数。
+然后先让学习者画出目录结构和模块边界，再开始任何代码实现。
 
-## 相关明细
+## Guardrails
 
-- 详细状态：见 `docs/learning-state.md`
-- 学习笔记：见 `docs/learning-notes/`
-- 暂缓问题：见 `docs/backlog.md`
-- 里程碑标准：见 `docs/milestone-rubric.md`
+* 不得跳到 P1。
+* 不得开始真实 LLM 接入。
+* 不得开始 Tool Registry、Patch、MCP、多 Agent 或 Web UI。
+* 新想法写入 `docs/backlog.md`，不得中断 P0.1。
+
+## Last Updated
+
+2026-06-30
