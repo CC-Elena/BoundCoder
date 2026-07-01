@@ -2,10 +2,11 @@
   "name": "boundcoder",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@9",
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
     "build": "echo \"TODO: configure build\"",
     "lint": "echo \"TODO: configure lint\"",
-    "test": "echo \"TODO: configure test\""
+    "test": "echo \"TODO: configure test\"",
+    "typecheck": "npx tsc -p apps/cli/tsconfig.json --noEmit && npx tsc -p apps/sandbox-repo/tsconfig.json --noEmit && npx tsc -p packages/agent-core/tsconfig.json --noEmit && npx tsc -p packages/tools/tsconfig.json --noEmit && npx tsc -p packages/policy/tsconfig.json --noEmit && npx tsc -p packages/harness/tsconfig.json --noEmit && npx tsc -p packages/trace/tsconfig.json --noEmit && npx tsc -p packages/verification/tsconfig.json --noEmit && npx tsc -p packages/shared/tsconfig.json --noEmit"
   }
 }
