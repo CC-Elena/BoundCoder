@@ -21,15 +21,59 @@ BoundCoder is a coding agent similar to a mini Claude Code. This repository is o
 - `packages/verification`: verification pipeline (tests, assertions, post-action checks).
 - `packages/shared`: shared Result/Error/domain utilities used by all packages.
 
-## Dependency Direction (Important)
-Keep dependencies one-way to prevent architectural drift:
+## Dependency Direction (Staged Rules)
+Use phased dependency unlocks to prevent architectural drift.
 
-1. `apps/*` can depend on `agent-core`, `tools`, `policy`, `trace`, `shared`.
-2. `agent-core` can depend on `tools`, `policy`, `trace`, `shared`.
-3. `tools`, `policy`, `harness`, `verification`, `trace` can depend on `shared`.
-4. `shared` must not depend on other workspace packages.
+### Phase 0: Initialization (current)
+Goal: keep topology minimal while scaffolding and typecheck are stabilized.
 
-Avoid circular dependencies across packages.
+Allowed edges:
+1. `apps/cli` -> `packages/agent-core`
+2. `packages/agent-core` -> `packages/shared`
+
+Constraints:
+1. Other packages may exist but must not depend on each other yet.
+2. `apps/web` and `apps/sandbox-repo` do not depend on workspace packages for now.
+3. `packages/shared` must not depend on any workspace package.
+4. No circular dependencies.
+
+### Phase 1: Single-Agent MVP
+Entry criteria:
+1. Phase 0 root `typecheck` is green.
+2. CLI can run one instruction through `agent-core`.
+
+Additional allowed edges:
+1. `packages/agent-core` -> `packages/tools`
+2. `packages/agent-core` -> `packages/policy`
+3. `packages/agent-core` -> `packages/trace`
+4. `packages/tools` -> `packages/shared`
+5. `packages/policy` -> `packages/shared`
+6. `packages/trace` -> `packages/shared`
+
+### Phase 2: Verification and Harness
+Entry criteria:
+1. Phase 1 loop can complete one end-to-end task in sandbox.
+
+Additional allowed edges:
+1. `packages/verification` -> `packages/shared`
+2. `packages/verification` -> `packages/trace`
+3. `packages/harness` -> `packages/verification`
+4. `packages/harness` -> `packages/shared`
+5. `apps/sandbox-repo` remains target codebase, not a dependency provider.
+
+### Phase 3: Productization
+Entry criteria:
+1. Phase 2 has stable regression scenarios.
+
+Additional allowed edges:
+1. `apps/web` -> `packages/agent-core`
+2. `apps/web` -> `packages/trace`
+3. `apps/web` -> `packages/shared`
+
+Global rules for all phases:
+1. New dependency edge must be added only when entering a new phase.
+2. Any new edge must be documented in this file in the same PR.
+3. Keep dependency direction one-way; avoid cycles.
 
 ## Coding Rules
 - Prefer strict TypeScript types for all package boundaries.
