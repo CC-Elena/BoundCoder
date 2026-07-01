@@ -1,3 +1,0 @@
-[submodule "apps/sandbox-repo"]
-	path = apps/sandbox-repo
-	url = ./apps/sandbox-repo
