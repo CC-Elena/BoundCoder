@@ -1,0 +1,11 @@
+{
+  "name": "boundcoder",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9",
+  "scripts": {
+    "build": "echo \"TODO: configure build\"",
+    "lint": "echo \"TODO: configure lint\"",
+    "test": "echo \"TODO: configure test\""
+  }
+}
