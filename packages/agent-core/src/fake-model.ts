@@ -1,4 +1,4 @@
-import type { AgentMessage, ToolCall, ToolResult } from "./types.js";
+import type { AgentMessage, ToolCall, ToolResult } from "@boundcoder/shared";
 
 /**
  * 当前最小 Agent Loop 的约束：

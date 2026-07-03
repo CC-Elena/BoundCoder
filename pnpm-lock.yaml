@@ -37,6 +37,9 @@ importers:
       '@boundcoder/shared':
         specifier: workspace:*
         version: link:../shared
+      '@boundcoder/tools':
+        specifier: workspace:*
+        version: link:../tools
 
   packages/harness: {}
 
@@ -44,7 +47,11 @@ importers:
 
   packages/shared: {}
 
-  packages/tools: {}
+  packages/tools:
+    dependencies:
+      '@boundcoder/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/trace: {}
 

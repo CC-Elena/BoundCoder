@@ -32,3 +32,10 @@ export interface AgentRunResult {
   messages: AgentMessage[];
   stopReason: StopReason;
 }
+
+export interface AgentRunOptions {  
+  task: string; // 任务描述
+  maxSteps?: number; // 最大循环次数
+  // modelTimeoutMs?: number; // 模型响应超时时间
+  // toolTimeoutMs?: number; // 工具执行超时时间
+}
