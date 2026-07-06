@@ -6,7 +6,13 @@
   "scripts": {
     "build": "echo \"TODO: configure build\"",
     "lint": "echo \"TODO: configure lint\"",
-    "test": "echo \"TODO: configure test\"",
-    "typecheck": "npx tsc -p apps/cli/tsconfig.json --noEmit && npx tsc -p apps/sandbox-repo/tsconfig.json --noEmit && npx tsc -p packages/agent-core/tsconfig.json --noEmit && npx tsc -p packages/tools/tsconfig.json --noEmit && npx tsc -p packages/policy/tsconfig.json --noEmit && npx tsc -p packages/harness/tsconfig.json --noEmit && npx tsc -p packages/trace/tsconfig.json --noEmit && npx tsc -p packages/verification/tsconfig.json --noEmit && npx tsc -p packages/shared/tsconfig.json --noEmit"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p apps/cli/tsconfig.json --noEmit && tsc -p apps/sandbox-repo/tsconfig.json --noEmit && tsc -p packages/agent-core/tsconfig.json --noEmit && tsc -p packages/tools/tsconfig.json --noEmit && tsc -p packages/policy/tsconfig.json --noEmit && tsc -p packages/harness/tsconfig.json --noEmit && tsc -p packages/trace/tsconfig.json --noEmit && tsc -p packages/verification/tsconfig.json --noEmit && tsc -p packages/shared/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.10"
   }
 }

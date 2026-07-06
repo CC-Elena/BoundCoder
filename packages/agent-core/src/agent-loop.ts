@@ -2,7 +2,9 @@ import type { AgentRunOptions, AgentRunResult, AgentMessage } from "@boundcoder/
 import { fakeModel } from "./fake-model.js";
 import { executeFakeTool } from "@boundcoder/tools";
 
-const DEFAULT_MAX_STEPS = 5;export function runAgentLoop(options: AgentRunOptions): AgentRunResult{
+const DEFAULT_MAX_STEPS = 5;
+
+export function runAgentLoop(options: AgentRunOptions): AgentRunResult{
   const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
   
   const messages: AgentMessage[] = [

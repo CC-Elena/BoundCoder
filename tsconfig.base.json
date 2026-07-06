@@ -3,12 +3,10 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
     "paths": {
-      "@boundcoder/agent-core": ["packages/agent-core/src/index.ts"],
-      "@boundcoder/shared": ["packages/shared/src/index.ts"],
-      "@boundcoder/tools": ["packages/tools/src/index.ts"]
+      "@boundcoder/agent-core": ["./packages/agent-core/src/index.ts"],
+      "@boundcoder/shared": ["./packages/shared/src/index.ts"],
+      "@boundcoder/tools": ["./packages/tools/src/index.ts"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,

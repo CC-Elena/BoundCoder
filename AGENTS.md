@@ -24,7 +24,7 @@ BoundCoder is a coding agent similar to a mini Claude Code. This repository is o
 ## Dependency Direction (Staged Rules)
 Use phased dependency unlocks to prevent architectural drift.
 
-### Phase 0: Initialization (current)
+### Phase 0: Initialization
 Goal: keep topology minimal while scaffolding and typecheck are stabilized.
 
 Allowed edges:
