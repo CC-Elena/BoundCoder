@@ -12,6 +12,32 @@ describe("runAgentLoop", () => {
     expect(result.stopReason).toBe("final_answer");
   });
 
+  it("模型直接返回文本时，应立即结束且不调用工具", () => {
+    const model = vi.fn(() => ({
+      role: "assistant" as const,
+      kind: "text" as const,
+      content: "直接完成",
+    }));
+    const executeTool = vi.fn();
+
+    const result = runAgentLoop(
+      { task: "编写测试" },
+      {
+        model,
+        executeTool,
+      },
+    );
+
+    expect(result.stopReason).toBe("final_answer");
+    expect(result.finalAnswer).toBe("直接完成");
+    expect(model).toHaveBeenCalledTimes(1);
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(result.messages.map(({ role, kind }) => ({ role, kind }))).toEqual([
+      { role: "user", kind: "text" },
+      { role: "assistant", kind: "text" },
+    ]);
+  });
+
   it("注入模型和工具后，完成最小闭环", () => {
     const result = runAgentLoop(
       { task: "编写测试" },
@@ -132,5 +158,7 @@ describe("runAgentLoop", () => {
       { role: "assistant", kind: "tool_call" },
     ]);
   });
+
+  
 
 });

@@ -2,21 +2,12 @@ import type {
   AgentMessage,
   AgentRunOptions,
   AgentRunResult,
-  ToolCall,
-  ToolResult,
 } from "@boundcoder/shared";
 import { fakeModel } from "./fake-model.js";
 import { executeFakeTool } from "@boundcoder/tools";
+import type { AgentLoopDependencies } from "./contracts.js";
 
 const DEFAULT_MAX_STEPS = 5;
-
-export type AgentModel = (messages: AgentMessage[]) => AgentMessage;
-export type ToolExecutor = (call: ToolCall) => ToolResult;
-
-export interface AgentLoopDependencies {
-  model?: AgentModel;
-  executeTool?: ToolExecutor;
-}
 
 export function runAgentLoop(
   options: AgentRunOptions,
