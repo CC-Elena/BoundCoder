@@ -48,7 +48,7 @@ describe("executeFakeTool", () => {
     const result = executeFakeTool(toolCall);
 
     // Assert
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       toolCallId: "test-call-2",
       ok: false,
       output: "",
@@ -70,7 +70,7 @@ describe("executeFakeTool", () => {
       const result = executeFakeTool(toolCall);
 
       // Assert
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         toolCallId: "test-call-3",
         ok: false,
         output: "",

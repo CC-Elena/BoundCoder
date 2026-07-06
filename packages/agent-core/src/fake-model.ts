@@ -1,12 +1,5 @@
 import type { AgentMessage, ToolCall, ToolResult } from "@boundcoder/shared";
 
-/**
- * 当前最小 Agent Loop 的约束：
- * 1) 只允许一个 fake 工具名
- * 2) 只做最多两轮模型行为：
- *    - 第一轮返回 tool_call
- *    - 第二轮在拿到 tool_result 后返回最终答案
- */
 const FAKE_TOOL_NAME = "fake_tool";
 const FAKE_TOOL_CALL_ID = "call-1";
 
