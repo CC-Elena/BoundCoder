@@ -1,0 +1,136 @@
+import { describe, expect, it, vi } from "vitest";
+import { executeFakeTool } from "@boundcoder/tools";
+import { runAgentLoop } from "../agent-loop.js";
+import { fakeModel } from "../fake-model.js";
+
+describe("runAgentLoop", () => {
+  it("未传依赖时，使用默认模型和工具完成最小闭环", () => {
+    const result = runAgentLoop({
+      task: "编写测试",
+    });
+
+    expect(result.stopReason).toBe("final_answer");
+  });
+
+  it("注入模型和工具后，完成最小闭环", () => {
+    const result = runAgentLoop(
+      { task: "编写测试" },
+      {
+        model: fakeModel,
+        executeTool: executeFakeTool,
+      },
+    );
+
+    expect(result.stopReason).toBe("final_answer");
+    expect(result.finalAnswer).toBe(
+      "已处理任务：fake_tool_processed(编写测试)",
+    );
+    expect(
+      result.messages.map(({ role, kind }) => ({ role, kind })),
+    ).toEqual([
+      { role: "user", kind: "text" },
+      { role: "assistant", kind: "tool_call" },
+      { role: "tool", kind: "tool_result" },
+      { role: "assistant", kind: "text" },
+    ]);
+  });
+
+  it("最大步数测试", () => {
+    const executeTool = vi.fn(executeFakeTool);
+
+    const result = runAgentLoop(
+      { task: "编写测试", maxSteps: 1 },
+      {
+        model: fakeModel,
+        executeTool,
+      },
+    );
+
+    expect(result.stopReason).toBe("model_no_final");
+    expect(result.finalAnswer).toBe(null);
+    expect(executeTool).toHaveBeenCalledTimes(1);
+    expect(executeTool).toHaveBeenCalledWith({
+      id: "call-1",
+      name: "fake_tool",
+      parameters: {
+        task: "编写测试",
+      },
+    });
+    expect(
+      result.messages.map(({ role, kind }) => ({ role, kind })),
+    ).toEqual([
+      { role: "user", kind: "text" },
+      { role: "assistant", kind: "tool_call" },
+      { role: "tool", kind: "tool_result" },
+    ]);
+  });
+
+  it("工具结果失败时仍会回灌给模型并生成失败回答", () => {
+    const failingExecuteTool = vi.fn(() => ({
+      toolCallId: "call-1",
+      ok: false,
+      output: "",
+      errorMessage: "invalid task parameter",
+    }));
+
+    const result = runAgentLoop(
+      { task: "编写测试" },
+      {
+        model: fakeModel,
+        executeTool: failingExecuteTool,
+      },
+    );
+
+    expect(result.stopReason).toBe("final_answer");
+    expect(result.finalAnswer).toBe("工具执行失败：invalid task parameter");
+    expect(failingExecuteTool).toHaveBeenCalledTimes(1);
+    expect(failingExecuteTool).toHaveBeenCalledWith({
+      id: "call-1",
+      name: "fake_tool",
+      parameters: {
+        task: "编写测试",
+      },
+    });
+    expect(
+      result.messages.map(({ role, kind }) => ({ role, kind })),
+    ).toEqual([
+      { role: "user", kind: "text" },
+      { role: "assistant", kind: "tool_call" },
+      { role: "tool", kind: "tool_result" },
+      { role: "assistant", kind: "text" },
+    ]);
+  });
+
+  it("模型返回缺少 toolCall 的 tool_call 消息时，应安全停止", () => {
+    const model = vi.fn(() => ({
+      role: "assistant" as const,
+      kind: "tool_call" as const,
+      content: "broken tool call",
+      // 故意没有 toolCall
+    }));
+
+    const executeTool = vi.fn();
+
+    const result = runAgentLoop(
+      { task: "测试异常工具调用" },
+      {
+        model,
+        executeTool,
+      },
+    );
+
+    expect(result.stopReason).toBe("invalid_tool_call");
+    expect(result.finalAnswer).toBeNull();
+
+    expect(model).toHaveBeenCalledTimes(1);
+    expect(executeTool).not.toHaveBeenCalled();
+
+    expect(
+      result.messages.map(({ role, kind }) => ({ role, kind })),
+    ).toEqual([
+      { role: "user", kind: "text" },
+      { role: "assistant", kind: "tool_call" },
+    ]);
+  });
+
+});

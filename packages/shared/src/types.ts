@@ -24,7 +24,6 @@ export interface ToolResult {
 export type StopReason =
   | "final_answer"
   | "invalid_tool_call"
-  | "tool_failed"
   | "model_no_final";
 
 export interface AgentRunResult {
