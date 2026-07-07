@@ -65,6 +65,10 @@ importers:
       '@boundcoder/shared':
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^26.0.1
+        version: 26.0.1
 
   packages/trace: {}
 
