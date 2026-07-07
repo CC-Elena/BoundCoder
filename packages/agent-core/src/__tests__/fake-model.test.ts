@@ -109,6 +109,24 @@ describe("fakeModel", () => {
     expect(response.toolCall?.parameters).toEqual({});
   });
 
+  it("任务以 search: 开头时应调用 search_code 工具", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "search: createToolRegistry",
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response.kind).toBe("tool_call");
+    expect(response.toolCall?.name).toBe("search_code");
+    expect(response.toolCall?.parameters).toEqual({
+      query: "createToolRegistry",
+    });
+  });
+
   it("有工具结果时返回最终答案", () => {
     // Arrange
     const messages: AgentMessage[] = [

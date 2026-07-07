@@ -3,9 +3,11 @@ import type { AgentMessage, ToolCall, ToolResult } from "@boundcoder/shared";
 const FAKE_TOOL_NAME = "fake_tool";
 const READ_FILE_TOOL_NAME = "read_file";
 const LIST_FILES_TOOL_NAME = "list_files";
+const SEARCH_CODE_TOOL_NAME = "search_code";
 const FAKE_TOOL_CALL_ID = "call-1";
 const READ_TASK_PREFIX = "read:";
 const LIST_TASK_PREFIX = "list:";
+const SEARCH_TASK_PREFIX = "search:";
 
 /**
  * 构造工具调用对象。
@@ -39,6 +41,17 @@ function buildToolCallForTask(task: string): ToolCall {
       id: FAKE_TOOL_CALL_ID,
       name: LIST_FILES_TOOL_NAME,
       parameters: requestedPath ? { path: requestedPath } : {},
+    };
+  }
+
+  if (task.startsWith(SEARCH_TASK_PREFIX)) {
+    const query = task.slice(SEARCH_TASK_PREFIX.length).trim();
+    return {
+      id: FAKE_TOOL_CALL_ID,
+      name: SEARCH_CODE_TOOL_NAME,
+      parameters: {
+        query,
+      },
     };
   }
 
