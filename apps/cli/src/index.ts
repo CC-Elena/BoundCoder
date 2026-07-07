@@ -3,7 +3,8 @@ import { createDefaultToolRegistry } from "@boundcoder/tools";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const task = "read:readme.md";
+// const task = "read:readme.md";
+const task = "list:";
 const cliSourceDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRootDir = path.resolve(cliSourceDir, "../../..");
 const toolRegistry = createDefaultToolRegistry(

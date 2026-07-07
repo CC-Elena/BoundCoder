@@ -90,4 +90,66 @@ describe("createListFilesTool", () => {
     expect(result.output).toBe("");
     expect(result.errorMessage).toContain("list files failed:");
   });
+
+  it("超过 maxEntries 时应截断并追加标记", () => {
+    const rootDir = makeTempDir();
+    fs.writeFileSync(path.join(rootDir, "a.txt"), "a", "utf-8");
+    fs.writeFileSync(path.join(rootDir, "b.txt"), "b", "utf-8");
+
+    const tool = createListFilesTool({ rootDir, maxEntries: 1 });
+    const result = tool.execute({
+      id: "call-5",
+      name: "list_files",
+      parameters: {},
+    });
+
+    expect(result).toEqual({
+      toolCallId: "call-5",
+      ok: true,
+      output: "a.txt\n...TRUNCATED...",
+    });
+  });
+
+  it("超过 maxDepth 时应截断并追加标记", () => {
+    const rootDir = makeTempDir();
+    fs.mkdirSync(path.join(rootDir, "a", "b"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "a", "b", "deep.txt"), "x", "utf-8");
+
+    const tool = createListFilesTool({ rootDir, maxDepth: 0 });
+    const result = tool.execute({
+      id: "call-6",
+      name: "list_files",
+      parameters: {},
+    });
+
+    expect(result).toEqual({
+      toolCallId: "call-6",
+      ok: true,
+      output: "...TRUNCATED...",
+    });
+  });
+
+  it("默认忽略 node_modules、dist、.git 目录", () => {
+    const rootDir = makeTempDir();
+    fs.mkdirSync(path.join(rootDir, "node_modules"), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, "dist"), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, ".git"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "node_modules", "skip.js"), "x", "utf-8");
+    fs.writeFileSync(path.join(rootDir, "dist", "skip.js"), "x", "utf-8");
+    fs.writeFileSync(path.join(rootDir, ".git", "config"), "x", "utf-8");
+    fs.writeFileSync(path.join(rootDir, "keep.ts"), "x", "utf-8");
+
+    const tool = createListFilesTool({ rootDir });
+    const result = tool.execute({
+      id: "call-7",
+      name: "list_files",
+      parameters: {},
+    });
+
+    expect(result).toEqual({
+      toolCallId: "call-7",
+      ok: true,
+      output: "keep.ts",
+    });
+  });
 });

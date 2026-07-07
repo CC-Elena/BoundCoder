@@ -9,7 +9,7 @@ const LIST_TASK_PREFIX = "list:";
 
 /**
  * 构造工具调用对象。
- * 这里不接入真实 Tool Registry，只返回固定工具 + 最小参数。
+ * 根据受控任务前缀构造工具调用。
  */
 function buildToolCall(task: string): ToolCall {
   return {
