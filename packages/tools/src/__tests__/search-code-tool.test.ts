@@ -93,4 +93,65 @@ describe("createSearchCodeTool", () => {
       output: "a.ts:1:token\n...TRUNCATED...",
     });
   });
+
+  it("命中数等于 maxResults 时不应追加截断标记", () => {
+    const rootDir = makeTempDir();
+    fs.writeFileSync(path.join(rootDir, "a.ts"), "token", "utf-8");
+
+    const tool = createSearchCodeTool({ rootDir, maxResults: 1 });
+    const result = tool.execute({
+      id: "call-5",
+      name: "search_code",
+      parameters: { query: "token" },
+    });
+
+    expect(result).toEqual({
+      toolCallId: "call-5",
+      ok: true,
+      output: "a.ts:1:token",
+    });
+  });
+
+  it("path 越界时返回 path out of rootDir", () => {
+    const rootDir = makeTempDir();
+    const tool = createSearchCodeTool({ rootDir });
+
+    const result = tool.execute({
+      id: "call-6",
+      name: "search_code",
+      parameters: {
+        query: "token",
+        path: "../outside",
+      },
+    });
+
+    expect(result).toEqual({
+      toolCallId: "call-6",
+      ok: false,
+      output: "",
+      errorMessage: "path out of rootDir",
+    });
+  });
+
+  it("path 指向文件时返回 path is not a directory", () => {
+    const rootDir = makeTempDir();
+    fs.writeFileSync(path.join(rootDir, "single.ts"), "token", "utf-8");
+    const tool = createSearchCodeTool({ rootDir });
+
+    const result = tool.execute({
+      id: "call-7",
+      name: "search_code",
+      parameters: {
+        query: "token",
+        path: "single.ts",
+      },
+    });
+
+    expect(result).toEqual({
+      toolCallId: "call-7",
+      ok: false,
+      output: "",
+      errorMessage: "path is not a directory",
+    });
+  });
 });

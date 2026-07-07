@@ -110,9 +110,10 @@ export function createSearchCodeTool(options: SearchCodeToolOptions): Tool {
         const files = collectFiles(targetPath, ignoredDirs);
         const normalizedQuery = query.toLowerCase();
         const matches: string[] = [];
+        let truncated = false;
 
         for (const filePath of files) {
-          if (matches.length >= maxResults) {
+          if (truncated) {
             break;
           }
 
@@ -120,7 +121,7 @@ export function createSearchCodeTool(options: SearchCodeToolOptions): Tool {
           const lines = content.split(/\r?\n/);
 
           for (let i = 0; i < lines.length; i += 1) {
-            if (matches.length >= maxResults) {
+            if (truncated) {
               break;
             }
 
@@ -129,15 +130,19 @@ export function createSearchCodeTool(options: SearchCodeToolOptions): Tool {
               continue;
             }
 
+            if (matches.length >= maxResults) { // 发现第 maxResults+1 条命中
+              truncated = true;
+              break;
+            }
+
             const relativePath = path.relative(rootDir, filePath);
             matches.push(`${relativePath}:${i + 1}:${line}`);
           }
         }
 
-        const outputLines =
-          matches.length >= maxResults
-            ? matches.concat(TRUNCATION_MARKER)
-            : matches;
+        const outputLines = truncated
+          ? matches.concat(TRUNCATION_MARKER)
+          : matches;
 
         return {
           toolCallId: call.id,
