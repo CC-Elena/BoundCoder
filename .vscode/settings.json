@@ -27,6 +27,10 @@
         "/^pnpm --filter @boundcoder/tools add -D @types/node@\\^26\\.0\\.1$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^pnpm --filter @boundcoder/tools test && pnpm --filter @boundcoder/tools typecheck && pnpm --filter @boundcoder/agent-core test && pnpm --filter @boundcoder/agent-core typecheck$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

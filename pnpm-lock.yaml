@@ -53,6 +53,10 @@ importers:
       '@boundcoder/tools':
         specifier: workspace:*
         version: link:../tools
+    devDependencies:
+      '@types/node':
+        specifier: ^26.0.1
+        version: 26.0.1
 
   packages/harness: {}
 

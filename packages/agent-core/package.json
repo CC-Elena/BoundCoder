@@ -11,5 +11,8 @@
   "dependencies": {
     "@boundcoder/shared": "workspace:*",
     "@boundcoder/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1"
   }
 }
