@@ -8,7 +8,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@boundcoder/agent-core": "workspace:*"
+    "@boundcoder/agent-core": "workspace:*",
+    "@boundcoder/tools": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",

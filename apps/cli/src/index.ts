@@ -1,12 +1,19 @@
 import { runAgentLoop } from "@boundcoder/agent-core";
+import { createDefaultToolRegistry } from "@boundcoder/tools";
+import path from "node:path";
 
 const task = "What project am I working on?";
+const toolRegistry = createDefaultToolRegistry(
+  path.resolve(process.cwd(), "apps/sandbox-repo"),
+);
 
 console.log(`[agent] Task received: ${task}`);
 
 const result = runAgentLoop({
   task,
   maxSteps: 3,
+}, {
+  toolRegistry,
 });
 
 for (const message of result.messages) {

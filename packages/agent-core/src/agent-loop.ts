@@ -4,10 +4,11 @@ import type {
   AgentRunResult,
 } from "@boundcoder/shared";
 import { fakeModel } from "./fake-model.js";
-import { defaultToolRegistry } from "@boundcoder/tools";
+import { createDefaultToolRegistry } from "@boundcoder/tools";
 import type { AgentLoopDependencies } from "./contracts.js";
 
 const DEFAULT_MAX_STEPS = 5;
+const defaultToolRegistry = createDefaultToolRegistry(process.cwd());
 
 export function runAgentLoop(
   options: AgentRunOptions,
