@@ -32,6 +32,49 @@ describe("fakeModel", () => {
     });
   });
 
+  it("任务以 read: 开头时应调用 read_file 工具", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "read: src/index.ts",
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response).toEqual({
+      role: "assistant",
+      kind: "tool_call",
+      content: "Calling read_file",
+      toolCall: {
+        id: "call-1",
+        name: "read_file",
+        parameters: {
+          path: "src/index.ts",
+        },
+      },
+    });
+  });
+
+  it("输入 read: package.json 时应生成 read_file 的 tool_call", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "read: package.json",
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response.kind).toBe("tool_call");
+    expect(response.toolCall?.name).toBe("read_file");
+    expect(response.toolCall?.parameters).toEqual({
+      path: "package.json",
+    });
+  });
+
   it("有工具结果时返回最终答案", () => {
     // Arrange
     const messages: AgentMessage[] = [

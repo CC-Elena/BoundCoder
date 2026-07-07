@@ -1,10 +1,13 @@
 import { runAgentLoop } from "@boundcoder/agent-core";
 import { createDefaultToolRegistry } from "@boundcoder/tools";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const task = "What project am I working on?";
+const task = "read:package.json";
+const cliSourceDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRootDir = path.resolve(cliSourceDir, "../../..");
 const toolRegistry = createDefaultToolRegistry(
-  path.resolve(process.cwd(), "apps/sandbox-repo"),
+  path.join(repoRootDir, "apps/sandbox-repo"),
 );
 
 console.log(`[agent] Task received: ${task}`);
@@ -43,9 +46,8 @@ for (const message of result.messages) {
     continue;
   }
 
-  if (message.kind === "text") {
-    console.log(`[model] final answer: ${message.content}`);
-  }
 }
+
+console.log(`[model] final answer: ${result.finalAnswer ?? "(none)"}`);
 
 console.log(`[agent] stop reason: ${result.stopReason}`);

@@ -1,7 +1,9 @@
 import type { AgentMessage, ToolCall, ToolResult } from "@boundcoder/shared";
 
 const FAKE_TOOL_NAME = "fake_tool";
+const READ_FILE_TOOL_NAME = "read_file";
 const FAKE_TOOL_CALL_ID = "call-1";
+const READ_TASK_PREFIX = "read:";
 
 /**
  * 构造工具调用对象。
@@ -15,6 +17,21 @@ function buildToolCall(task: string): ToolCall {
       task,
     },
   };
+}
+
+function buildToolCallForTask(task: string): ToolCall {
+  if (task.startsWith(READ_TASK_PREFIX)) {
+    const requestedPath = task.slice(READ_TASK_PREFIX.length).trim();
+    return {
+      id: FAKE_TOOL_CALL_ID,
+      name: READ_FILE_TOOL_NAME,
+      parameters: {
+        path: requestedPath,
+      },
+    };
+  }
+
+  return buildToolCall(task);
 }
 
 /**
@@ -53,7 +70,7 @@ export function fakeModel(messages: AgentMessage[]): AgentMessage {
     // 最小版本只处理单任务场景，因此不做复杂多任务解析。
     const userTask = messages.find((m) => m.role === "user" && m.kind === "text");
     const task = userTask?.content ?? "";
-    const toolCall = buildToolCall(task);
+    const toolCall = buildToolCallForTask(task);
 
     return {
       role: "assistant",
