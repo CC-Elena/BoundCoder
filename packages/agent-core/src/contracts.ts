@@ -1,10 +1,9 @@
-import type { AgentMessage, ToolCall, ToolResult } from "@boundcoder/shared";
+import type { AgentMessage } from "@boundcoder/shared";
+import type { ToolRegistry } from "@boundcoder/tools";
 
 export type AgentModel = (messages: AgentMessage[]) => AgentMessage;
 
-export type ToolExecutor = (call: ToolCall) => ToolResult;
-
 export interface AgentLoopDependencies {
   model?: AgentModel;
-  executeTool?: ToolExecutor;
+  toolRegistry?: ToolRegistry;
 }

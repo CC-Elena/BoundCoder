@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ToolCall } from "@boundcoder/shared";
-import { executeFakeTool } from "../fake-tool.js";
+import { fakeTool } from "../fake-tool.js";
 
 const invalidTaskCases: Array<{
   caseName: string;
@@ -12,7 +12,7 @@ const invalidTaskCases: Array<{
   { caseName: "task 只包含空白", parameters: { task: "   " } },
 ];
 
-describe("executeFakeTool", () => {
+describe("fakeTool", () => {
   it("处理合法任务并返回标准化结果", () => {
     // Arrange
     const toolCall: ToolCall = {
@@ -24,35 +24,13 @@ describe("executeFakeTool", () => {
     };
 
     // Act
-    const result = executeFakeTool(toolCall);
+    const result = fakeTool.execute(toolCall);
 
     // Assert
     expect(result).toEqual({
       toolCallId: "test-call-1",
       ok: true,
       output: "fake_tool_processed(编写测试)",
-    });
-  });
-
-  it("拒绝不支持的工具名", () => {
-    // Arrange
-    const toolCall: ToolCall = {
-      id: "test-call-2",
-      name: "unsupported_tool",
-      parameters: {
-        task: "some task",
-      },
-    };
-
-    // Act
-    const result = executeFakeTool(toolCall);
-
-    // Assert
-    expect(result).toMatchObject({
-      toolCallId: "test-call-2",
-      ok: false,
-      output: "",
-      errorMessage: "unsupported tool: unsupported_tool",
     });
   });
 
@@ -67,7 +45,7 @@ describe("executeFakeTool", () => {
       };
 
       // Act
-      const result = executeFakeTool(toolCall);
+      const result = fakeTool.execute(toolCall);
 
       // Assert
       expect(result).toMatchObject({

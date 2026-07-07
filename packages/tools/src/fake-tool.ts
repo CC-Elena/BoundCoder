@@ -1,38 +1,32 @@
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
+import type { Tool } from "./contracts.js";
 
-const SUPPORTED_TOOL_NAME = "fake_tool";
+export const FAKE_TOOL_NAME = "fake_tool";
 
 /**
  * fakeTool 的职责：
  * - 不访问文件系统、不调用外部服务
- * - 仅对一个固定工具名做纯内存处理
+ * - 只处理自己需要的参数逻辑
  * - 返回结构化 ToolResult，供上层 loop 回灌给模型
  */
-export function executeFakeTool(call: ToolCall): ToolResult {
-  if (call.name !== SUPPORTED_TOOL_NAME) {
+export const fakeTool: Tool = {
+  name: FAKE_TOOL_NAME,
+  execute(call: ToolCall): ToolResult {
+    const taskValue = call.parameters.task;
+
+    if (typeof taskValue !== "string" || taskValue.trim() === "") {
+      return {
+        toolCallId: call.id,
+        ok: false,
+        output: "",
+        errorMessage: "invalid task parameter",
+      };
+    }
+
     return {
       toolCallId: call.id,
-      ok: false,
-      output: "",
-      errorMessage: `unsupported tool: ${call.name}`,
+      ok: true,
+      output: `fake_tool_processed(${taskValue.trim()})`,
     };
-  }
-
-  const taskValue = call.parameters.task;
-  if (typeof taskValue !== "string" || taskValue.trim() === "") {
-    return {
-      toolCallId: call.id,
-      ok: false,
-      output: "",
-      errorMessage: "invalid task parameter",
-    };
-  }
-
-  const normalizedTask = taskValue.trim();
-
-  return {
-    toolCallId: call.id,
-    ok: true,
-    output: `fake_tool_processed(${normalizedTask})`,
-  };
-}
+  },
+};

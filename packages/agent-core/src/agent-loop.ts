@@ -4,7 +4,7 @@ import type {
   AgentRunResult,
 } from "@boundcoder/shared";
 import { fakeModel } from "./fake-model.js";
-import { executeFakeTool } from "@boundcoder/tools";
+import { defaultToolRegistry } from "@boundcoder/tools";
 import type { AgentLoopDependencies } from "./contracts.js";
 
 const DEFAULT_MAX_STEPS = 5;
@@ -16,7 +16,7 @@ export function runAgentLoop(
   const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
 
   const model = dependencies.model ?? fakeModel;
-  const executeTool = dependencies.executeTool ?? executeFakeTool;
+  const toolRegistry = dependencies.toolRegistry ?? defaultToolRegistry;
 
   const messages: AgentMessage[] = [
     {
@@ -38,7 +38,7 @@ export function runAgentLoop(
         stopReason: "final_answer",
       };
     } else if (modelResponse.kind === "tool_call" && modelResponse.toolCall) {
-      const toolResult = executeTool(modelResponse.toolCall);
+      const toolResult = toolRegistry.execute(modelResponse.toolCall);
       messages.push({
         role: "tool",
         kind: "tool_result",
