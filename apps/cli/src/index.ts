@@ -3,7 +3,7 @@ import { createDefaultToolRegistry } from "@boundcoder/tools";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const task = "read:package.json";
+const task = "read:readme.md";
 const cliSourceDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRootDir = path.resolve(cliSourceDir, "../../..");
 const toolRegistry = createDefaultToolRegistry(

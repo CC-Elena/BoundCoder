@@ -75,6 +75,40 @@ describe("fakeModel", () => {
     });
   });
 
+  it("任务以 list: 开头时应调用 list_files 工具", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "list: src",
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response.kind).toBe("tool_call");
+    expect(response.toolCall?.name).toBe("list_files");
+    expect(response.toolCall?.parameters).toEqual({
+      path: "src",
+    });
+  });
+
+  it("list: 不带路径时应省略 path 参数", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "list:",
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response.kind).toBe("tool_call");
+    expect(response.toolCall?.name).toBe("list_files");
+    expect(response.toolCall?.parameters).toEqual({});
+  });
+
   it("有工具结果时返回最终答案", () => {
     // Arrange
     const messages: AgentMessage[] = [
