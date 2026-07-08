@@ -2,33 +2,30 @@ import fs from "fs";
 import path from "path";
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
 import type { Tool } from "./contracts.js";
+import { paramErr, paramOk, type ParamResult } from "./params.js";
+import { fail, isPathInsideRoot, toErrorMessage } from "./tool-helpers.js";
 
 export interface ReadFileToolOptions {
   rootDir: string;
 }
 
-const READ_FILE_TOOL_NAME = "read_file";
-
-function fail(toolCallId: string, errorMessage: string): ToolResult {
-  return {
-    toolCallId,
-    ok: false,
-    output: "",
-    errorMessage,
-  };
+// read_file 的调用参数契约。
+export interface ReadFileParameters {
+  path: string;
 }
 
-function isPathInsideRoot(rootDir: string, candidatePath: string): boolean {
-  const relative = path.relative(rootDir, candidatePath);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
+// 将非类型化参数解析为类型化的 ReadFileParameters，实现接口↔运行时校验对齐。
+export function parseReadFileParameters(
+  params: Record<string, unknown>,
+): ParamResult<ReadFileParameters> {
+  const pathParam = params.path;
+  if (typeof pathParam !== "string" || pathParam.trim() === "") {
+    return paramErr("invalid path parameter");
   }
-  return "unknown error";
+  return paramOk({ path: pathParam });
 }
+
+const READ_FILE_TOOL_NAME = "read_file";
 
 // 不同运行环境可注入不同工作区；测试时也能传临时目录，避免碰到真实项目文件。
 export function createReadFileTool(
@@ -40,11 +37,11 @@ export function createReadFileTool(
     name: READ_FILE_TOOL_NAME,
 
     execute(call: ToolCall): ToolResult {
-      const requestedPath = call.parameters.path;
-
-      if (typeof requestedPath !== "string" || requestedPath.trim() === "") {
-        return fail(call.id, "invalid path parameter");
+      const parsed = parseReadFileParameters(call.parameters);
+      if (!parsed.ok) {
+        return fail(call.id, parsed.error);
       }
+      const { path: requestedPath } = parsed.value;
 
       const targetPath = path.resolve(rootDir, requestedPath);
 

@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
 import type { Tool } from "./contracts.js";
+import { paramErr, paramOk, type ParamResult } from "./params.js";
+import { fail, isPathInsideRoot, toErrorMessage } from "./tool-helpers.js";
 
 export interface ListFilesToolOptions {
   rootDir: string;
@@ -10,32 +12,26 @@ export interface ListFilesToolOptions {
   ignoredDirs?: string[];
 }
 
+// list_files 的调用参数契约。path 缺省时从 rootDir 根目录列出。
+export interface ListFilesParameters {
+  path?: string;
+}
+
+export function parseListFilesParameters(
+  params: Record<string, unknown>,
+): ParamResult<ListFilesParameters> {
+  const pathParam = params.path;
+  if (pathParam !== undefined && typeof pathParam !== "string") {
+    return paramErr("invalid path parameter");
+  }
+  return paramOk({ path: pathParam });
+}
+
 const LIST_FILES_TOOL_NAME = "list_files";
 const DEFAULT_MAX_DEPTH = 5;
 const DEFAULT_MAX_ENTRIES = 500;
 const DEFAULT_IGNORED_DIRS = ["node_modules", "dist", ".git"];
 const TRUNCATION_MARKER = "...TRUNCATED...";
-
-function fail(toolCallId: string, errorMessage: string): ToolResult {
-  return {
-    toolCallId,
-    ok: false,
-    output: "",
-    errorMessage,
-  };
-}
-
-function isPathInsideRoot(rootDir: string, candidatePath: string): boolean {
-  const relative = path.relative(rootDir, candidatePath);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "unknown error";
-}
 
 interface CollectFilesResult {
   files: string[];
@@ -122,11 +118,11 @@ export function createListFilesTool(
     name: LIST_FILES_TOOL_NAME,
 
     execute(call: ToolCall): ToolResult {
-      const requestedPath = call.parameters.path;
-
-      if (requestedPath !== undefined && typeof requestedPath !== "string") {
-        return fail(call.id, "invalid path parameter");
+      const parsed = parseListFilesParameters(call.parameters);
+      if (!parsed.ok) {
+        return fail(call.id, parsed.error);
       }
+      const { path: requestedPath } = parsed.value;
 
       // 默认路径是工具被授权的 rootDir
       const normalizedPath =

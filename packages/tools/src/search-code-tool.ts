@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
 import type { Tool } from "./contracts.js";
+import { paramErr, paramOk, type ParamResult } from "./params.js";
+import { fail, isPathInsideRoot, toErrorMessage } from "./tool-helpers.js";
 
 export interface SearchCodeToolOptions {
   rootDir: string;
@@ -9,31 +11,30 @@ export interface SearchCodeToolOptions {
   ignoredDirs?: string[];
 }
 
+// search_code 的调用参数契约。path 缺省时在 rootDir 根目录搜索。
+export interface SearchCodeParameters {
+  query: string;
+  path?: string;
+}
+
+export function parseSearchCodeParameters(
+  params: Record<string, unknown>,
+): ParamResult<SearchCodeParameters> {
+  const query = params.query;
+  if (typeof query !== "string" || query.trim() === "") {
+    return paramErr("invalid query parameter");
+  }
+  const pathParam = params.path;
+  if (pathParam !== undefined && typeof pathParam !== "string") {
+    return paramErr("invalid path parameter");
+  }
+  return paramOk({ query, path: pathParam });
+}
+
 const SEARCH_CODE_TOOL_NAME = "search_code";
 const DEFAULT_MAX_RESULTS = 100;
 const DEFAULT_IGNORED_DIRS = ["node_modules", "dist", ".git"];
 const TRUNCATION_MARKER = "...TRUNCATED...";
-
-function fail(toolCallId: string, errorMessage: string): ToolResult {
-  return {
-    toolCallId,
-    ok: false,
-    output: "",
-    errorMessage,
-  };
-}
-
-function isPathInsideRoot(rootDir: string, candidatePath: string): boolean {
-  const relative = path.relative(rootDir, candidatePath);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "unknown error";
-}
 
 function collectFiles(baseDir: string, ignoredDirs: Set<string>): string[] {
   const files: string[] = [];
@@ -81,15 +82,11 @@ export function createSearchCodeTool(options: SearchCodeToolOptions): Tool {
     name: SEARCH_CODE_TOOL_NAME,
 
     execute(call: ToolCall): ToolResult {
-      const query = call.parameters.query;
-      const requestedPath = call.parameters.path;
-
-      if (typeof query !== "string" || query.trim() === "") {
-        return fail(call.id, "invalid query parameter");
+      const parsed = parseSearchCodeParameters(call.parameters);
+      if (!parsed.ok) {
+        return fail(call.id, parsed.error);
       }
-      if (requestedPath !== undefined && typeof requestedPath !== "string") {
-        return fail(call.id, "invalid path parameter");
-      }
+      const { query, path: requestedPath } = parsed.value;
 
       const normalizedPath =
         typeof requestedPath === "string" && requestedPath.trim() !== ""
