@@ -69,6 +69,21 @@ function buildApplyPatchToolCall(task: string): ToolCall {
   };
 }
 
+function buildSearchPatchToolCall(task: string, readCall: ToolCall): ToolCall {
+  const patchIntent = `review and patch based on: ${task.slice(SEARCH_TASK_PREFIX.length).trim()}`;
+  const pathParam = readCall.parameters.path;
+  const patchPath = typeof pathParam === "string" ? pathParam : "";
+
+  return {
+    id: FAKE_TOOL_CALL_ID,
+    name: APPLY_PATCH_TOOL_NAME,
+    parameters: {
+      path: patchPath,
+      patch: patchIntent,
+    },
+  };
+}
+
 function extractFirstMatchedPath(searchOutput: string): string | null {
   const lines = searchOutput.split(/\r?\n/);
   for (const line of lines) {
@@ -225,7 +240,7 @@ function toFinalAnswer(result: ToolResult): NextAction {
   };
 }
 
-// 决策核心（学习注释）：
+// 决策核心：
 // 把“任务类型 + 最近一步执行”映射成下一步动作，
 // 让 fakeModel 从 if-else 片段演进到可扩展的状态机雏形。
 function decideNextAction(task: string, latestExecution: ToolExecution | null): NextAction {
@@ -261,20 +276,9 @@ function decideNextAction(task: string, latestExecution: ToolExecution | null): 
     }
 
     if (call.name === READ_FILE_TOOL_NAME) {
-      const patchIntent = `review and patch based on: ${task.slice(SEARCH_TASK_PREFIX.length).trim()}`;
-      const pathParam = call.parameters.path;
-      const patchPath = typeof pathParam === "string" ? pathParam : "";
-
       return {
         kind: "call_tool",
-        toolCall: {
-          id: FAKE_TOOL_CALL_ID,
-          name: APPLY_PATCH_TOOL_NAME,
-          parameters: {
-            path: patchPath,
-            patch: patchIntent,
-          },
-        },
+        toolCall: buildSearchPatchToolCall(task, call),
       };
     }
 
