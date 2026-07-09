@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createListFilesTool } from "../list-files-tool.js";
+import { createWorkspaceFs } from "../workspace-fs.js";
 
 const tempDirs: string[] = [];
 
@@ -25,7 +26,7 @@ describe("createListFilesTool", () => {
     fs.writeFileSync(path.join(rootDir, "README.md"), "root", "utf-8");
     fs.writeFileSync(path.join(rootDir, "src", "index.ts"), "code", "utf-8");
 
-    const tool = createListFilesTool({ rootDir });
+    const tool = createListFilesTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
     const result = tool.execute({
       id: "call-1",
       name: "list_files",
@@ -41,7 +42,7 @@ describe("createListFilesTool", () => {
 
   it("路径参数类型错误时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createListFilesTool({ rootDir });
+    const tool = createListFilesTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-2",
@@ -59,7 +60,7 @@ describe("createListFilesTool", () => {
 
   it("越界目录访问时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createListFilesTool({ rootDir });
+    const tool = createListFilesTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-3",
@@ -77,7 +78,7 @@ describe("createListFilesTool", () => {
 
   it("目录不存在时返回结构化失败", () => {
     const rootDir = makeTempDir();
-    const tool = createListFilesTool({ rootDir });
+    const tool = createListFilesTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-4",
@@ -96,7 +97,10 @@ describe("createListFilesTool", () => {
     fs.writeFileSync(path.join(rootDir, "a.txt"), "a", "utf-8");
     fs.writeFileSync(path.join(rootDir, "b.txt"), "b", "utf-8");
 
-    const tool = createListFilesTool({ rootDir, maxEntries: 1 });
+    const tool = createListFilesTool({
+      workspaceFs: createWorkspaceFs({ rootDir }),
+      maxEntries: 1,
+    });
     const result = tool.execute({
       id: "call-5",
       name: "list_files",
@@ -115,7 +119,10 @@ describe("createListFilesTool", () => {
     fs.mkdirSync(path.join(rootDir, "a", "b"), { recursive: true });
     fs.writeFileSync(path.join(rootDir, "a", "b", "deep.txt"), "x", "utf-8");
 
-    const tool = createListFilesTool({ rootDir, maxDepth: 0 });
+    const tool = createListFilesTool({
+      workspaceFs: createWorkspaceFs({ rootDir }),
+      maxDepth: 0,
+    });
     const result = tool.execute({
       id: "call-6",
       name: "list_files",
@@ -139,7 +146,7 @@ describe("createListFilesTool", () => {
     fs.writeFileSync(path.join(rootDir, ".git", "config"), "x", "utf-8");
     fs.writeFileSync(path.join(rootDir, "keep.ts"), "x", "utf-8");
 
-    const tool = createListFilesTool({ rootDir });
+    const tool = createListFilesTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
     const result = tool.execute({
       id: "call-7",
       name: "list_files",

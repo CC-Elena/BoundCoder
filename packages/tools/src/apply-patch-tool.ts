@@ -1,13 +1,13 @@
 import crypto from "crypto";
-import fs from "fs";
 import path from "path";
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
 import type { Tool } from "./contracts.js";
 import { paramErr, paramOk, type ParamResult } from "./params.js";
-import { fail, isPathInsideRoot, toErrorMessage } from "./tool-helpers.js";
+import { fail } from "./tool-helpers.js";
+import type { WorkspaceFs } from "./workspace-fs.js";
 
 export interface ApplyPatchToolOptions {
-  rootDir: string;
+  workspaceFs: WorkspaceFs;
   // patch 意图串的最大字节数，超过即拒绝，防止超大 payload。
   maxPatchBytes?: number;
 }
@@ -59,7 +59,7 @@ function hashContent(content: string): string {
 // 当前阶段：校验参数 + rootDir 权限 + 补丁大小 + expectedHash 乐观锁。
 // patch 仅为“修改意图”占位符，尚无应用引擎，因此 dry-run 只返回预览，落盘暂不支持。
 export function createApplyPatchTool(options: ApplyPatchToolOptions): Tool {
-  const rootDir = path.resolve(options.rootDir);
+  const workspaceFs = options.workspaceFs;
   const maxPatchBytes = options.maxPatchBytes ?? DEFAULT_MAX_PATCH_BYTES;
 
   if (!Number.isInteger(maxPatchBytes) || maxPatchBytes <= 0) {
@@ -79,48 +79,44 @@ export function createApplyPatchTool(options: ApplyPatchToolOptions): Tool {
       // 安全默认：未显式传 dryRun 时不落盘。
       const dryRun = parsed.value.dryRun ?? true;
 
-      // 2. rootDir 权限检查：解析后的绝对路径必须仍在工作区内。
-      const targetPath = path.resolve(rootDir, requestedPath);
-      if (!isPathInsideRoot(rootDir, targetPath)) {
-        return fail(call.id, "path out of rootDir");
-      }
-
-      // 3. 补丁大小限制：按字节统计 patch 意图串。
+      // 2. 补丁大小限制：按字节统计 patch 意图串。
       const patchBytes = Buffer.byteLength(patch, "utf-8");
       if (patchBytes > maxPatchBytes) {
         return fail(call.id, `patch too large: ${patchBytes} > ${maxPatchBytes}`);
       }
 
-      const relativePath = path.relative(rootDir, targetPath);
+      const relativePath = path.normalize(requestedPath).replace(/^[.][\\/]/, "") || ".";
 
-      try {
-        // 4. 读文件并计算当前哈希。
-        const content = fs.readFileSync(targetPath, "utf-8");
-        const currentHash = hashContent(content);
-
-        // 5. 乐观锁：expectedHash 与当前哈希不符，说明文件在读取后被改过，拒绝应用。
-        if (expectedHash !== undefined && expectedHash !== currentHash) {
-          return fail(
-            call.id,
-            `expectedHash mismatch: file changed since read (current ${currentHash})`,
-          );
+      // 3. 读文件并计算当前哈希（含 rootDir 越界防护）。
+      const readResult = workspaceFs.readFile(requestedPath);
+      if (!readResult.ok) {
+        if (readResult.error === "path out of rootDir") {
+          return fail(call.id, readResult.error);
         }
-
-        // 6. patch 目前仅为意图占位符，尚无应用引擎：
-        //    - dry-run（默认）：返回校验通过的预览，并回传当前哈希供后续应用作乐观锁。
-        //    - 落盘：暂不支持，明确失败，避免伪造“已修改”。
-        if (dryRun) {
-          return {
-            toolCallId: call.id,
-            ok: true,
-            output: `dry-run apply_patch: ${relativePath} — intent: "${patch.trim()}" (hash ${currentHash})`,
-          };
-        }
-
-        return fail(call.id, "apply not implemented: patch engine pending");
-      } catch (error) {
-        return fail(call.id, `apply patch failed: ${toErrorMessage(error)}`);
+        return fail(call.id, `apply patch failed: ${readResult.error}`);
       }
+      const currentHash = hashContent(readResult.value);
+
+      // 4. 乐观锁：expectedHash 与当前哈希不符，说明文件在读取后被改过，拒绝应用。
+      if (expectedHash !== undefined && expectedHash !== currentHash) {
+        return fail(
+          call.id,
+          `expectedHash mismatch: file changed since read (current ${currentHash})`,
+        );
+      }
+
+      // 5. patch 目前仅为意图占位符，尚无应用引擎：
+      //    - dry-run（默认）：返回校验通过的预览，并回传当前哈希供后续应用作乐观锁。
+      //    - 落盘：暂不支持，明确失败，避免伪造“已修改”。
+      if (dryRun) {
+        return {
+          toolCallId: call.id,
+          ok: true,
+          output: `dry-run apply_patch: ${relativePath} — intent: "${patch.trim()}" (hash ${currentHash})`,
+        };
+      }
+
+      return fail(call.id, "apply not implemented: patch engine pending");
     },
   };
 }

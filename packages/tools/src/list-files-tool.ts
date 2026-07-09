@@ -1,12 +1,11 @@
-import fs from "fs";
-import path from "path";
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
 import type { Tool } from "./contracts.js";
 import { paramErr, paramOk, type ParamResult } from "./params.js";
-import { fail, isPathInsideRoot, toErrorMessage } from "./tool-helpers.js";
+import { fail } from "./tool-helpers.js";
+import type { WorkspaceFs } from "./workspace-fs.js";
 
 export interface ListFilesToolOptions {
-  rootDir: string;
+  workspaceFs: WorkspaceFs;
   maxDepth?: number;
   maxEntries?: number;
   ignoredDirs?: string[];
@@ -44,10 +43,15 @@ interface CollectFilesLimits {
   ignoredDirs: Set<string>;
 }
 
+function joinRelativePath(base: string, name: string): string {
+  return base === "." ? name : `${base}/${name}`;
+}
+
 function collectFilesRecursively(
+  workspaceFs: WorkspaceFs,
   baseDir: string,
   limits: CollectFilesLimits,
-): CollectFilesResult {
+): CollectFilesResult | null {
   const files: string[] = [];
   let truncated = false;
   const stack: Array<{ dir: string; depth: number }> = [{ dir: baseDir, depth: 0 }];
@@ -61,17 +65,19 @@ function collectFilesRecursively(
     const currentDir = current.dir;
     const currentDepth = current.depth;
 
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    entries.sort((a, b) => a.name.localeCompare(b.name));
+    const listResult = workspaceFs.listDir(currentDir);
+    if (!listResult.ok) {
+      return null;
+    }
 
-    for (const entry of entries) {
+    for (const entry of listResult.value) {
       if (files.length >= limits.maxEntries) {
         truncated = true;
         break;
       }
 
-      const fullPath = path.join(currentDir, entry.name);
-      if (entry.isDirectory()) {
+      const nextPath = joinRelativePath(currentDir, entry.name);
+      if (entry.isDirectory) {
         if (limits.ignoredDirs.has(entry.name)) {
           continue;
         }
@@ -81,12 +87,12 @@ function collectFilesRecursively(
           continue;
         }
 
-        stack.push({ dir: fullPath, depth: currentDepth + 1 });
+        stack.push({ dir: nextPath, depth: currentDepth + 1 });
         continue;
       }
 
-      if (entry.isFile()) {
-        files.push(fullPath);
+      if (entry.isFile) {
+        files.push(nextPath);
       }
     }
 
@@ -102,7 +108,7 @@ function collectFilesRecursively(
 export function createListFilesTool(
   options: ListFilesToolOptions,
 ): Tool {
-  const rootDir = path.resolve(options.rootDir);
+  const workspaceFs = options.workspaceFs;
   const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
   const maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
   const ignoredDirs = new Set(options.ignoredDirs ?? DEFAULT_IGNORED_DIRS);
@@ -130,37 +136,35 @@ export function createListFilesTool(
           ? requestedPath.trim()
           : ".";
 
-      const targetPath = path.resolve(rootDir, normalizedPath);
-
-      if (!isPathInsideRoot(rootDir, targetPath)) {
-        return fail(call.id, "path out of rootDir");
-      }
-
-      try {
-        const stat = fs.statSync(targetPath);
-        if (!stat.isDirectory()) {
-          return fail(call.id, "path is not a directory");
+      const statResult = workspaceFs.stat(normalizedPath);
+      if (!statResult.ok) {
+        if (statResult.error === "path out of rootDir") {
+          return fail(call.id, statResult.error);
         }
-
-        const collected = collectFilesRecursively(targetPath, {
-          maxDepth,
-          maxEntries,
-          ignoredDirs,
-        });
-
-        const outputLines = collected.files
-          .map((filePath) => path.relative(rootDir, filePath))
-          .concat(collected.truncated ? [TRUNCATION_MARKER] : []);
-        const output = outputLines.join("\n");
-
-        return {
-          toolCallId: call.id,
-          ok: true,
-          output,
-        };
-      } catch (error) {
-        return fail(call.id, `list files failed: ${toErrorMessage(error)}`);
+        return fail(call.id, `list files failed: ${statResult.error}`);
       }
+      if (!statResult.value.isDirectory) {
+        return fail(call.id, "path is not a directory");
+      }
+
+      const collected = collectFilesRecursively(workspaceFs, normalizedPath, {
+        maxDepth,
+        maxEntries,
+        ignoredDirs,
+      });
+      if (!collected) {
+        return fail(call.id, "list files failed: list dir failed: unknown error");
+      }
+
+      const outputLines = collected.files
+        .sort((a, b) => a.localeCompare(b))
+        .concat(collected.truncated ? [TRUNCATION_MARKER] : []);
+
+      return {
+        toolCallId: call.id,
+        ok: true,
+        output: outputLines.join("\n"),
+      };
     },
   };
 }

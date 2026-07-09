@@ -1,12 +1,11 @@
-import fs from "fs";
-import path from "path";
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
 import type { Tool } from "./contracts.js";
 import { paramErr, paramOk, type ParamResult } from "./params.js";
-import { fail, isPathInsideRoot, toErrorMessage } from "./tool-helpers.js";
+import { fail } from "./tool-helpers.js";
+import type { WorkspaceFs } from "./workspace-fs.js";
 
 export interface ReadFileToolOptions {
-  rootDir: string;
+  workspaceFs: WorkspaceFs;
 }
 
 // read_file 的调用参数契约。
@@ -31,7 +30,7 @@ const READ_FILE_TOOL_NAME = "read_file";
 export function createReadFileTool(
   options: ReadFileToolOptions,
 ): Tool {
-  const rootDir = path.resolve(options.rootDir);
+  const workspaceFs = options.workspaceFs;
 
   return {
     name: READ_FILE_TOOL_NAME,
@@ -43,23 +42,16 @@ export function createReadFileTool(
       }
       const { path: requestedPath } = parsed.value;
 
-      const targetPath = path.resolve(rootDir, requestedPath);
-
-      if (!isPathInsideRoot(rootDir, targetPath)) {
-        return fail(call.id, "path out of rootDir");
+      const readResult = workspaceFs.readFile(requestedPath);
+      if (!readResult.ok) {
+        return fail(call.id, readResult.error);
       }
 
-      try {
-        const content = fs.readFileSync(targetPath, "utf-8");
-
-        return {
-          toolCallId: call.id,
-          ok: true,
-          output: content,
-        };
-      } catch (error) {
-        return fail(call.id, `read file failed: ${toErrorMessage(error)}`);
-      }
+      return {
+        toolCallId: call.id,
+        ok: true,
+        output: readResult.value,
+      };
     },
   };
 }

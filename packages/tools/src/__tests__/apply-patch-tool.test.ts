@@ -4,6 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApplyPatchTool } from "../apply-patch-tool.js";
+import { createWorkspaceFs } from "../workspace-fs.js";
 
 const tempDirs: string[] = [];
 
@@ -35,7 +36,7 @@ describe("createApplyPatchTool", () => {
     const rootDir = makeTempDir();
     const original = "export const x = 1;\n";
     const filePath = writeFile(rootDir, "a.ts", original);
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-1",
@@ -55,7 +56,7 @@ describe("createApplyPatchTool", () => {
     const rootDir = makeTempDir();
     const original = "hello world";
     writeFile(rootDir, "a.ts", original);
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-2",
@@ -69,7 +70,7 @@ describe("createApplyPatchTool", () => {
   it("expectedHash 与当前不符时因乐观锁拒绝", () => {
     const rootDir = makeTempDir();
     writeFile(rootDir, "a.ts", "current content");
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-3",
@@ -85,7 +86,7 @@ describe("createApplyPatchTool", () => {
     const rootDir = makeTempDir();
     const original = "abc";
     const filePath = writeFile(rootDir, "a.ts", original);
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-4",
@@ -100,7 +101,7 @@ describe("createApplyPatchTool", () => {
 
   it("path 无效时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-5",
@@ -113,7 +114,7 @@ describe("createApplyPatchTool", () => {
 
   it("patch 为空时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-6",
@@ -126,7 +127,7 @@ describe("createApplyPatchTool", () => {
 
   it("dryRun 非 boolean 时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-7",
@@ -139,7 +140,7 @@ describe("createApplyPatchTool", () => {
 
   it("expectedHash 为空字符串时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-8",
@@ -152,7 +153,7 @@ describe("createApplyPatchTool", () => {
 
   it("路径越界时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-9",
@@ -165,7 +166,10 @@ describe("createApplyPatchTool", () => {
 
   it("patch 超过大小限制时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createApplyPatchTool({ rootDir, maxPatchBytes: 4 });
+    const tool = createApplyPatchTool({
+      workspaceFs: createWorkspaceFs({ rootDir }),
+      maxPatchBytes: 4,
+    });
 
     const result = tool.execute({
       id: "call-10",
@@ -179,7 +183,7 @@ describe("createApplyPatchTool", () => {
 
   it("文件不存在时返回结构化失败结果", () => {
     const rootDir = makeTempDir();
-    const tool = createApplyPatchTool({ rootDir });
+    const tool = createApplyPatchTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-11",
@@ -193,7 +197,10 @@ describe("createApplyPatchTool", () => {
 
   it("maxPatchBytes 非法时构造抛错", () => {
     const rootDir = makeTempDir();
-    expect(() => createApplyPatchTool({ rootDir, maxPatchBytes: 0 })).toThrow(
+    expect(() => createApplyPatchTool({
+      workspaceFs: createWorkspaceFs({ rootDir }),
+      maxPatchBytes: 0,
+    })).toThrow(
       "invalid maxPatchBytes option",
     );
   });

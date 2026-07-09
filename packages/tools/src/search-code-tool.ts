@@ -1,12 +1,11 @@
-import fs from "fs";
-import path from "path";
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
 import type { Tool } from "./contracts.js";
 import { paramErr, paramOk, type ParamResult } from "./params.js";
-import { fail, isPathInsideRoot, toErrorMessage } from "./tool-helpers.js";
+import { fail } from "./tool-helpers.js";
+import type { WorkspaceFs } from "./workspace-fs.js";
 
 export interface SearchCodeToolOptions {
-  rootDir: string;
+  workspaceFs: WorkspaceFs;
   maxResults?: number;
   ignoredDirs?: string[];
 }
@@ -36,7 +35,15 @@ const DEFAULT_MAX_RESULTS = 100;
 const DEFAULT_IGNORED_DIRS = ["node_modules", "dist", ".git"];
 const TRUNCATION_MARKER = "...TRUNCATED...";
 
-function collectFiles(baseDir: string, ignoredDirs: Set<string>): string[] {
+function joinRelativePath(base: string, name: string): string {
+  return base === "." ? name : `${base}/${name}`;
+}
+
+function collectFiles(
+  workspaceFs: WorkspaceFs,
+  baseDir: string,
+  ignoredDirs: Set<string>,
+): string[] | null {
   const files: string[] = [];
   const stack = [baseDir];
 
@@ -46,12 +53,14 @@ function collectFiles(baseDir: string, ignoredDirs: Set<string>): string[] {
       continue;
     }
 
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    entries.sort((a, b) => a.name.localeCompare(b.name));
+    const listResult = workspaceFs.listDir(currentDir);
+    if (!listResult.ok) {
+      return null;
+    }
 
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-      if (entry.isDirectory()) {
+    for (const entry of listResult.value) {
+      const fullPath = joinRelativePath(currentDir, entry.name);
+      if (entry.isDirectory) {
         if (ignoredDirs.has(entry.name)) {
           continue;
         }
@@ -59,7 +68,7 @@ function collectFiles(baseDir: string, ignoredDirs: Set<string>): string[] {
         continue;
       }
 
-      if (entry.isFile()) {
+      if (entry.isFile) {
         files.push(fullPath);
       }
     }
@@ -70,7 +79,7 @@ function collectFiles(baseDir: string, ignoredDirs: Set<string>): string[] {
 }
 
 export function createSearchCodeTool(options: SearchCodeToolOptions): Tool {
-  const rootDir = path.resolve(options.rootDir);
+  const workspaceFs = options.workspaceFs;
   const maxResults = options.maxResults ?? DEFAULT_MAX_RESULTS;
   const ignoredDirs = new Set(options.ignoredDirs ?? DEFAULT_IGNORED_DIRS);
 
@@ -92,63 +101,66 @@ export function createSearchCodeTool(options: SearchCodeToolOptions): Tool {
         typeof requestedPath === "string" && requestedPath.trim() !== ""
           ? requestedPath.trim()
           : ".";
-      const targetPath = path.resolve(rootDir, normalizedPath);
-
-      if (!isPathInsideRoot(rootDir, targetPath)) {
-        return fail(call.id, "path out of rootDir");
+      const statResult = workspaceFs.stat(normalizedPath);
+      if (!statResult.ok) {
+        if (statResult.error === "path out of rootDir") {
+          return fail(call.id, statResult.error);
+        }
+        return fail(call.id, `search code failed: ${statResult.error}`);
+      }
+      if (!statResult.value.isDirectory) {
+        return fail(call.id, "path is not a directory");
       }
 
-      try {
-        const stat = fs.statSync(targetPath);
-        if (!stat.isDirectory()) {
-          return fail(call.id, "path is not a directory");
+      const files = collectFiles(workspaceFs, normalizedPath, ignoredDirs);
+      if (!files) {
+        return fail(call.id, "search code failed: list dir failed: unknown error");
+      }
+
+      const normalizedQuery = query.toLowerCase();
+      const matches: string[] = [];
+      let truncated = false;
+
+      for (const filePath of files) {
+        if (truncated) {
+          break;
         }
 
-        const files = collectFiles(targetPath, ignoredDirs);
-        const normalizedQuery = query.toLowerCase();
-        const matches: string[] = [];
-        let truncated = false;
+        const contentResult = workspaceFs.readFile(filePath);
+        if (!contentResult.ok) {
+          return fail(call.id, `search code failed: ${contentResult.error}`);
+        }
 
-        for (const filePath of files) {
+        const lines = contentResult.value.split(/\r?\n/);
+
+        for (let i = 0; i < lines.length; i += 1) {
           if (truncated) {
             break;
           }
 
-          const content = fs.readFileSync(filePath, "utf-8");
-          const lines = content.split(/\r?\n/);
-
-          for (let i = 0; i < lines.length; i += 1) {
-            if (truncated) {
-              break;
-            }
-
-            const line = lines[i] ?? "";
-            if (!line.toLowerCase().includes(normalizedQuery)) {
-              continue;
-            }
-
-            if (matches.length >= maxResults) { // 发现第 maxResults+1 条命中
-              truncated = true;
-              break;
-            }
-
-            const relativePath = path.relative(rootDir, filePath);
-            matches.push(`${relativePath}:${i + 1}:${line}`);
+          const line = lines[i] ?? "";
+          if (!line.toLowerCase().includes(normalizedQuery)) {
+            continue;
           }
+
+          if (matches.length >= maxResults) { // 发现第 maxResults+1 条命中
+            truncated = true;
+            break;
+          }
+
+          matches.push(`${filePath}:${i + 1}:${line}`);
         }
-
-        const outputLines = truncated
-          ? matches.concat(TRUNCATION_MARKER)
-          : matches;
-
-        return {
-          toolCallId: call.id,
-          ok: true,
-          output: outputLines.join("\n"),
-        };
-      } catch (error) {
-        return fail(call.id, `search code failed: ${toErrorMessage(error)}`);
       }
+
+      const outputLines = truncated
+        ? matches.concat(TRUNCATION_MARKER)
+        : matches;
+
+      return {
+        toolCallId: call.id,
+        ok: true,
+        output: outputLines.join("\n"),
+      };
     },
   };
 }

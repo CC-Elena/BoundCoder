@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createReadFileTool } from "../read-file-tool.js";
+import { createWorkspaceFs } from "../workspace-fs.js";
 
 const tempDirs: string[] = [];
 
@@ -26,7 +27,7 @@ describe("createReadFileTool", () => {
     const filePath = path.join(rootDir, "notes.txt");
     fs.writeFileSync(filePath, "hello", "utf-8");
 
-    const tool = createReadFileTool({ rootDir });
+    const tool = createReadFileTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
     const result = tool.execute({
       id: "call-1",
       name: "read_file",
@@ -42,7 +43,7 @@ describe("createReadFileTool", () => {
 
   it("路径参数无效时返回失败结果", () => {
     const rootDir = makeTempDir();
-    const tool = createReadFileTool({ rootDir });
+    const tool = createReadFileTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-2",
@@ -60,7 +61,7 @@ describe("createReadFileTool", () => {
 
   it("尝试越界访问 rootDir 外部路径时返回失败结果", () => {
     const rootDir = makeTempDir();
-    const tool = createReadFileTool({ rootDir });
+    const tool = createReadFileTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-3",
@@ -78,7 +79,7 @@ describe("createReadFileTool", () => {
 
   it("读取不存在文件时返回结构化失败结果", () => {
     const rootDir = makeTempDir();
-    const tool = createReadFileTool({ rootDir });
+    const tool = createReadFileTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-4",

@@ -7,3 +7,4 @@ export * from "./contracts.js";
 export * from "./params.js";
 export * from "./tool-registry.js";
 export * from "./default-registry.js";
+export * from "./workspace-fs.js";

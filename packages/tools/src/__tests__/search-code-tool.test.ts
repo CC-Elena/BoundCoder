@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createSearchCodeTool } from "../search-code-tool.js";
+import { createWorkspaceFs } from "../workspace-fs.js";
 
 const tempDirs: string[] = [];
 
@@ -24,7 +25,7 @@ describe("createSearchCodeTool", () => {
     fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
     fs.writeFileSync(path.join(rootDir, "src", "a.ts"), "const token = 1;", "utf-8");
 
-    const tool = createSearchCodeTool({ rootDir });
+    const tool = createSearchCodeTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
     const result = tool.execute({
       id: "call-1",
       name: "search_code",
@@ -40,7 +41,7 @@ describe("createSearchCodeTool", () => {
 
   it("query 参数非法时返回失败", () => {
     const rootDir = makeTempDir();
-    const tool = createSearchCodeTool({ rootDir });
+    const tool = createSearchCodeTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-2",
@@ -62,7 +63,7 @@ describe("createSearchCodeTool", () => {
     fs.writeFileSync(path.join(rootDir, "node_modules", "lib.js"), "token", "utf-8");
     fs.writeFileSync(path.join(rootDir, "main.ts"), "token", "utf-8");
 
-    const tool = createSearchCodeTool({ rootDir });
+    const tool = createSearchCodeTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
     const result = tool.execute({
       id: "call-3",
       name: "search_code",
@@ -80,7 +81,10 @@ describe("createSearchCodeTool", () => {
     const rootDir = makeTempDir();
     fs.writeFileSync(path.join(rootDir, "a.ts"), "token\ntoken", "utf-8");
 
-    const tool = createSearchCodeTool({ rootDir, maxResults: 1 });
+    const tool = createSearchCodeTool({
+      workspaceFs: createWorkspaceFs({ rootDir }),
+      maxResults: 1,
+    });
     const result = tool.execute({
       id: "call-4",
       name: "search_code",
@@ -98,7 +102,10 @@ describe("createSearchCodeTool", () => {
     const rootDir = makeTempDir();
     fs.writeFileSync(path.join(rootDir, "a.ts"), "token", "utf-8");
 
-    const tool = createSearchCodeTool({ rootDir, maxResults: 1 });
+    const tool = createSearchCodeTool({
+      workspaceFs: createWorkspaceFs({ rootDir }),
+      maxResults: 1,
+    });
     const result = tool.execute({
       id: "call-5",
       name: "search_code",
@@ -114,7 +121,7 @@ describe("createSearchCodeTool", () => {
 
   it("path 越界时返回 path out of rootDir", () => {
     const rootDir = makeTempDir();
-    const tool = createSearchCodeTool({ rootDir });
+    const tool = createSearchCodeTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-6",
@@ -136,7 +143,7 @@ describe("createSearchCodeTool", () => {
   it("path 指向文件时返回 path is not a directory", () => {
     const rootDir = makeTempDir();
     fs.writeFileSync(path.join(rootDir, "single.ts"), "token", "utf-8");
-    const tool = createSearchCodeTool({ rootDir });
+    const tool = createSearchCodeTool({ workspaceFs: createWorkspaceFs({ rootDir }) });
 
     const result = tool.execute({
       id: "call-7",
