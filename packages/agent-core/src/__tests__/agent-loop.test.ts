@@ -4,15 +4,20 @@ import { runAgentLoop } from "../agent-loop.js";
 import { fakeModel } from "../fake-model.js";
 
 describe("runAgentLoop", () => {
-  it("未传依赖时，使用默认模型和工具完成最小闭环", () => {
-    const result = runAgentLoop({
-      task: "编写测试",
-    });
+  it("显式注入依赖时，使用默认模型和工具完成最小闭环", async () => {
+    const result = await runAgentLoop(
+      {
+        task: "编写测试",
+      },
+      {
+        toolRegistry: createToolRegistry([fakeTool]),
+      },
+    );
 
     expect(result.stopReason).toBe("final_answer");
   });
 
-  it("模型直接返回文本时，应立即结束且不调用工具", () => {
+  it("模型直接返回文本时，应立即结束且不调用工具", async () => {
     const model = vi.fn(() => ({
       role: "assistant" as const,
       kind: "text" as const,
@@ -22,7 +27,7 @@ describe("runAgentLoop", () => {
       execute: vi.fn(),
     };
 
-    const result = runAgentLoop(
+    const result = await runAgentLoop(
       { task: "编写测试" },
       {
         model,
@@ -40,11 +45,17 @@ describe("runAgentLoop", () => {
     ]);
   });
 
-  it("注入模型和工具后，完成最小闭环", () => {
+  it("注入模型和工具后，完成最小闭环", async () => {
     const toolRegistry = createToolRegistry([fakeTool]);
+    const events: Array<{ type: string }> = [];
 
-    const result = runAgentLoop(
-      { task: "编写测试" },
+    const result = await runAgentLoop(
+      {
+        task: "编写测试",
+        onEvent: (event) => {
+          events.push({ type: event.type });
+        },
+      },
       {
         model: fakeModel,
         toolRegistry,
@@ -63,14 +74,21 @@ describe("runAgentLoop", () => {
       { role: "tool", kind: "tool_result" },
       { role: "assistant", kind: "text" },
     ]);
+    expect(events.map((event) => event.type)).toEqual([
+      "run_start",
+      "assistant_message",
+      "tool_result",
+      "assistant_message",
+      "run_end",
+    ]);
   });
 
-  it("最大步数测试", () => {
+  it("最大步数测试", async () => {
     const toolRegistry = {
       execute: vi.fn(fakeTool.execute),
     };
 
-    const result = runAgentLoop(
+    const result = await runAgentLoop(
       { task: "编写测试", maxSteps: 1 },
       {
         model: fakeModel,
@@ -97,7 +115,7 @@ describe("runAgentLoop", () => {
     ]);
   });
 
-  it("工具结果失败时仍会回灌给模型并生成失败回答", () => {
+  it("工具结果失败时仍会回灌给模型并生成失败回答", async () => {
     const toolRegistry = {
       execute: vi.fn(() => ({
         toolCallId: "call-1",
@@ -107,7 +125,7 @@ describe("runAgentLoop", () => {
       })),
     };
 
-    const result = runAgentLoop(
+    const result = await runAgentLoop(
       { task: "编写测试" },
       {
         model: fakeModel,
@@ -135,7 +153,7 @@ describe("runAgentLoop", () => {
     ]);
   });
 
-  it("模型返回缺少 toolCall 的 tool_call 消息时，应安全停止", () => {
+  it("模型返回缺少 toolCall 的 tool_call 消息时，应安全停止", async () => {
     const model = vi.fn(() => ({
       role: "assistant" as const,
       kind: "tool_call" as const,
@@ -147,7 +165,7 @@ describe("runAgentLoop", () => {
       execute: vi.fn(),
     };
 
-    const result = runAgentLoop(
+    const result = await runAgentLoop(
       { task: "测试异常工具调用" },
       {
         model,

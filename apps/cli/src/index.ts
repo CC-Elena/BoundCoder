@@ -1,6 +1,7 @@
 import { runAgentLoop } from "@boundcoder/agent-core";
 import { createDefaultToolRegistry } from "@boundcoder/tools";
 import type { CommandRunner, ToolRegistry } from "@boundcoder/tools";
+import type { AgentEvent } from "@boundcoder/shared";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +14,51 @@ const fakeRunner: CommandRunner = (command, cwd) => ({
   output: `[fake-runner] command=${command} cwd=${cwd} stdout=test passed`,
 });
 
+type CliEvent =
+  | { type: "agent_start"; task: string }
+  | { type: "tool_call"; toolName: string }
+  | { type: "tool_result"; output: string }
+  | { type: "final_answer"; content: string };
+
+function toCliEvent(event: AgentEvent): CliEvent | null {
+  switch (event.type) {
+    case "run_start":
+      return { type: "agent_start", task: event.task };
+    case "assistant_message":
+      if (event.message.kind === "tool_call" && event.message.toolCall) {
+        return { type: "tool_call", toolName: event.message.toolCall.name };
+      }
+      return null;
+    case "tool_result":
+      return { type: "tool_result", output: event.toolResult.output };
+    case "run_end":
+      return { type: "final_answer", content: event.finalAnswer ?? "(none)" };
+  }
+}
+
+function logCliEvent(event: AgentEvent): void {
+  const cliEvent = toCliEvent(event);
+
+  if (!cliEvent) {
+    return;
+  }
+
+  switch (cliEvent.type) {
+    case "agent_start":
+      console.log("🚀", cliEvent.task);
+      break;
+    case "tool_call":
+      console.log("🔧", cliEvent.toolName);
+      break;
+    case "tool_result":
+      console.log("📦", cliEvent.output);
+      break;
+    case "final_answer":
+      console.log("✅", cliEvent.content);
+      break;
+  }
+}
+
 const toolRegistry = createDefaultToolRegistry(
   sandboxRootDir,
   {
@@ -24,7 +70,7 @@ const toolRegistry = createDefaultToolRegistry(
 
 type Check = {
   name: string;
-  run: () => { ok: boolean; detail: string };
+  run: () => Promise<{ ok: boolean; detail: string }>;
 };
 
 function executeTool(
@@ -40,12 +86,12 @@ function executeTool(
   });
 }
 
-function runChecks(checks: Check[]) {
+async function runChecks(checks: Check[]) {
   let passed = 0;
 
   console.log("[cli] Capability Verification Start");
   for (const check of checks) {
-    const result = check.run();
+    const result = await check.run();
     if (result.ok) {
       passed += 1;
       console.log(`[PASS] ${check.name}: ${result.detail}`);
@@ -65,7 +111,7 @@ function runChecks(checks: Check[]) {
 const checks: Check[] = [
   {
     name: "read_file",
-    run: () => {
+    run: async () => {
       const result = executeTool(toolRegistry, "call-read-1", "read_file", {
         path: "src/counter.ts",
       });
@@ -78,7 +124,7 @@ const checks: Check[] = [
   },
   {
     name: "list_files",
-    run: () => {
+    run: async () => {
       const result = executeTool(toolRegistry, "call-list-1", "list_files", {
         path: "src",
       });
@@ -91,7 +137,7 @@ const checks: Check[] = [
   },
   {
     name: "search_code",
-    run: () => {
+    run: async () => {
       const result = executeTool(toolRegistry, "call-search-1", "search_code", {
         query: "createCounter",
       });
@@ -104,7 +150,7 @@ const checks: Check[] = [
   },
   {
     name: "apply_patch(dry-run)",
-    run: () => {
+    run: async () => {
       const result = executeTool(toolRegistry, "call-patch-1", "apply_patch", {
         path: "src/counter.ts",
         patch: "add guard before decrement",
@@ -118,7 +164,7 @@ const checks: Check[] = [
   },
   {
     name: "run_command(test)",
-    run: () => {
+    run: async () => {
       const result = executeTool(toolRegistry, "call-run-test-1", "run_command", {
         name: "test",
       });
@@ -131,7 +177,7 @@ const checks: Check[] = [
   },
   {
     name: "run_command(lint)",
-    run: () => {
+    run: async () => {
       const result = executeTool(toolRegistry, "call-run-lint-1", "run_command", {
         name: "lint",
       });
@@ -144,7 +190,7 @@ const checks: Check[] = [
   },
   {
     name: "run_command(reject unknown)",
-    run: () => {
+    run: async () => {
       const result = executeTool(toolRegistry, "call-run-build-1", "run_command", {
         name: "build",
       });
@@ -157,10 +203,13 @@ const checks: Check[] = [
   },
   {
     name: "runAgentLoop(search -> patch -> verify)",
-    run: () => {
-      const result = runAgentLoop({
+    run: async () => {
+      const result = await runAgentLoop({
         task: "search: createCounter",
         maxSteps: 5,
+        onEvent: (event) => {
+          logCliEvent(event);
+        },
       }, {
         toolRegistry,
       });
@@ -179,4 +228,4 @@ const checks: Check[] = [
   },
 ];
 
-runChecks(checks);
+void runChecks(checks);

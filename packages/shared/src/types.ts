@@ -21,6 +21,31 @@ export interface ToolResult {
     toolResult?: ToolResult; // 工具调用结果（如果有）
 }
 
+export type AgentEvent =
+  | {
+      type: "run_start";
+      task: string;
+      timestamp: number;
+    }
+  | {
+      type: "assistant_message";
+      step: number;
+      message: AgentMessage;
+      timestamp: number;
+    }
+  | {
+      type: "tool_result";
+      step: number;
+      toolResult: ToolResult;
+      timestamp: number;
+    }
+  | {
+      type: "run_end";
+      stopReason: StopReason;
+      finalAnswer: string | null;
+      timestamp: number;
+    };
+
 export type StopReason =
   | "final_answer"
   | "invalid_tool_call"
@@ -35,6 +60,7 @@ export interface AgentRunResult {
 export interface AgentRunOptions {  
   task: string; // 任务描述
   maxSteps?: number; // 最大循环次数
+  onEvent?: (event: AgentEvent) => void;
   // modelTimeoutMs?: number; // 模型响应超时时间
   // toolTimeoutMs?: number; // 工具执行超时时间
 }

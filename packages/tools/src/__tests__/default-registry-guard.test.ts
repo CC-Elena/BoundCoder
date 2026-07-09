@@ -64,4 +64,46 @@ describe("createDefaultToolRegistry guard", () => {
       expect(result.errorMessage).toBe("path out of rootDir");
     }
   });
+
+  it("可透传 maxResults 与 maxPatchBytes 边界限制", () => {
+    const rootDir = makeTempDir();
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(rootDir, "src", "counter.ts"),
+      "createCounter();\ncreateCounter();\n",
+      "utf-8",
+    );
+
+    const registry = createDefaultToolRegistry(rootDir, {
+      searchCodeOptions: {
+        maxResults: 1,
+      },
+      applyPatchOptions: {
+        maxPatchBytes: 4,
+      },
+    });
+
+    const searchResult = registry.execute({
+      id: "call-search-limit",
+      name: "search_code",
+      parameters: {
+        query: "createCounter",
+      },
+    });
+
+    expect(searchResult.ok).toBe(true);
+    expect(searchResult.output).toContain("...TRUNCATED...");
+
+    const patchResult = registry.execute({
+      id: "call-patch-limit",
+      name: "apply_patch",
+      parameters: {
+        path: "src/counter.ts",
+        patch: "abcde",
+      },
+    });
+
+    expect(patchResult.ok).toBe(false);
+    expect(patchResult.errorMessage).toBe("patch too large: 5 > 4");
+  });
 });
