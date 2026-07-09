@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createToolRegistry, fakeTool } from "@boundcoder/tools";
-import { runAgentLoop } from "../agent-loop.js";
-import { fakeModel } from "../fake-model.js";
+import { runAgentLoop } from "../loop/agent-loop.js";
+import { fakeModel } from "../model/fake-model.js";
 
 describe("runAgentLoop", () => {
   it("显式注入依赖时，使用默认模型和工具完成最小闭环", async () => {

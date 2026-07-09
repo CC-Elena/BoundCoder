@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentMessage } from "@boundcoder/shared";
-import { fakeModel } from "../fake-model.js";
+import { fakeModel } from "../model/fake-model.js";
 
 //messages 理解成 Agent 的短期记忆。所以是一个数组，不是单条消息
 describe("fakeModel", () => {

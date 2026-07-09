@@ -14,47 +14,21 @@ const fakeRunner: CommandRunner = (command, cwd) => ({
   output: `[fake-runner] command=${command} cwd=${cwd} stdout=test passed`,
 });
 
-type CliEvent =
-  | { type: "agent_start"; task: string }
-  | { type: "tool_call"; toolName: string }
-  | { type: "tool_result"; output: string }
-  | { type: "final_answer"; content: string };
-
-function toCliEvent(event: AgentEvent): CliEvent | null {
+function logCliEvent(event: AgentEvent): void {
   switch (event.type) {
     case "run_start":
-      return { type: "agent_start", task: event.task };
+      console.log("🚀", event.task);
+      break;
     case "assistant_message":
       if (event.message.kind === "tool_call" && event.message.toolCall) {
-        return { type: "tool_call", toolName: event.message.toolCall.name };
+        console.log("🔧", event.message.toolCall.name);
       }
-      return null;
+      break;
     case "tool_result":
-      return { type: "tool_result", output: event.toolResult.output };
+      console.log("📦", event.toolResult.output);
+      break;
     case "run_end":
-      return { type: "final_answer", content: event.finalAnswer ?? "(none)" };
-  }
-}
-
-function logCliEvent(event: AgentEvent): void {
-  const cliEvent = toCliEvent(event);
-
-  if (!cliEvent) {
-    return;
-  }
-
-  switch (cliEvent.type) {
-    case "agent_start":
-      console.log("🚀", cliEvent.task);
-      break;
-    case "tool_call":
-      console.log("🔧", cliEvent.toolName);
-      break;
-    case "tool_result":
-      console.log("📦", cliEvent.output);
-      break;
-    case "final_answer":
-      console.log("✅", cliEvent.content);
+      console.log("✅", event.finalAnswer ?? "(none)");
       break;
   }
 }
