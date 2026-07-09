@@ -3,6 +3,7 @@ export * from "./fake-tool.js";
 export * from "./list-files-tool.js";
 export * from "./read-file-tool.js";
 export * from "./search-code-tool.js";
+export * from "./run-command-tool.js";
 export * from "./contracts.js";
 export * from "./params.js";
 export * from "./tool-registry.js";

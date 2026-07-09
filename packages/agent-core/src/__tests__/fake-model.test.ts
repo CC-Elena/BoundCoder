@@ -398,7 +398,7 @@ describe("fakeModel", () => {
     });
   });
 
-  it("search 流程中 apply_patch 成功后应返回最终回答", () => {
+  it("search 流程中 apply_patch 成功后应调用 run_command 执行验证", () => {
     const messages: AgentMessage[] = [
       {
         role: "user",
@@ -434,8 +434,55 @@ describe("fakeModel", () => {
 
     expect(response).toEqual({
       role: "assistant",
+      kind: "tool_call",
+      content: "Calling run_command",
+      toolCall: {
+        id: "call-1",
+        name: "run_command",
+        parameters: {
+          name: "test",
+        },
+      },
+    });
+  });
+
+  it("search 流程中 run_command 成功后应返回最终回答", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "search: createCounter",
+      },
+      {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling run_command",
+        toolCall: {
+          id: "call-1",
+          name: "run_command",
+          parameters: {
+            name: "test",
+          },
+        },
+      },
+      {
+        role: "tool",
+        kind: "tool_result",
+        content: "PASS test suite",
+        toolResult: {
+          toolCallId: "call-1",
+          output: "PASS test suite",
+          ok: true,
+        },
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response).toEqual({
+      role: "assistant",
       kind: "text",
-      content: "已处理任务：dry-run apply_patch: src/counter.ts",
+      content: "已处理任务：PASS test suite",
     });
   });
 

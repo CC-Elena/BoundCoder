@@ -5,11 +5,13 @@ const READ_FILE_TOOL_NAME = "read_file";
 const LIST_FILES_TOOL_NAME = "list_files";
 const SEARCH_CODE_TOOL_NAME = "search_code";
 const APPLY_PATCH_TOOL_NAME = "apply_patch";
+const RUN_COMMAND_TOOL_NAME = "run_command";
 const FAKE_TOOL_CALL_ID = "call-1";
 const READ_TASK_PREFIX = "read:";
 const LIST_TASK_PREFIX = "list:";
 const SEARCH_TASK_PREFIX = "search:";
 const APPLY_PATCH_TASK_PREFIX = "patch:";
+const DEFAULT_VERIFICATION_NAME = "test";
 
 function parsePatchTask(task: string): { path: string; patch: string } {
   // 约定格式：patch:<path>|<intent>
@@ -80,6 +82,16 @@ function buildSearchPatchToolCall(task: string, readCall: ToolCall): ToolCall {
     parameters: {
       path: patchPath,
       patch: patchIntent,
+    },
+  };
+}
+
+function buildRunCommandToolCall(name: string): ToolCall {
+  return {
+    id: FAKE_TOOL_CALL_ID,
+    name: RUN_COMMAND_TOOL_NAME,
+    parameters: {
+      name,
     },
   };
 }
@@ -283,6 +295,13 @@ function decideNextAction(task: string, latestExecution: ToolExecution | null): 
     }
 
     if (call.name === APPLY_PATCH_TOOL_NAME) {
+      return {
+        kind: "call_tool",
+        toolCall: buildRunCommandToolCall(DEFAULT_VERIFICATION_NAME),
+      };
+    }
+
+    if (call.name === RUN_COMMAND_TOOL_NAME) {
       return toFinalAnswer(result);
     }
   }
