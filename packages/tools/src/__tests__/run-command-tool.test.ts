@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRunCommandTool, parseRunCommandParameters } from "../run-command-tool.js";
+import { createRunCommandTool, parseRunCommandParameters } from "../command/run-command-tool.js";
 
 describe("parseRunCommandParameters", () => {
   it("name 非字符串时返回失败", () => {

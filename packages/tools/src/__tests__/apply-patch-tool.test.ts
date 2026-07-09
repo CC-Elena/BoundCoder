@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
-import { createApplyPatchTool } from "../apply-patch-tool.js";
-import { createWorkspaceFs } from "../workspace-fs.js";
+import { createApplyPatchTool } from "../filesystem/apply-patch-tool.js";
+import { createWorkspaceFs } from "../filesystem/workspace-fs.js";
 
 const tempDirs: string[] = [];
 

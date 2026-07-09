@@ -1,11 +1,11 @@
-import { createApplyPatchTool, type ApplyPatchToolOptions } from "./apply-patch-tool.js";
+import { createApplyPatchTool, type ApplyPatchToolOptions } from "./filesystem/apply-patch-tool.js";
 import { fakeTool } from "./fake-tool.js";
-import { createListFilesTool } from "./list-files-tool.js";
-import { createReadFileTool } from "./read-file-tool.js";
-import { createRunCommandTool, type RunCommandToolOptions } from "./run-command-tool.js";
-import { createSearchCodeTool, type SearchCodeToolOptions } from "./search-code-tool.js";
+import { createListFilesTool } from "./filesystem/list-files-tool.js";
+import { createReadFileTool } from "./filesystem/read-file-tool.js";
+import { createRunCommandTool, type RunCommandToolOptions } from "./command/run-command-tool.js";
+import { createSearchCodeTool, type SearchCodeToolOptions } from "./filesystem/search-code-tool.js";
 import { createToolRegistry } from "./tool-registry.js";
-import { createWorkspaceFs } from "./workspace-fs.js";
+import { createWorkspaceFs } from "./filesystem/workspace-fs.js";
 
 export interface DefaultToolRegistryOptions {
   searchCodeOptions?: Omit<SearchCodeToolOptions, "workspaceFs">;

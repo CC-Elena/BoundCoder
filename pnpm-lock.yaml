@@ -48,9 +48,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@boundcoder/agent-core':
-        specifier: workspace:*
-        version: link:../../packages/agent-core
       '@boundcoder/shared':
         specifier: workspace:*
         version: link:../../packages/shared

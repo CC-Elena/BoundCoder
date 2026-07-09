@@ -1,7 +1,7 @@
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
-import type { Tool } from "./contracts.js";
-import { paramErr, paramOk, type ParamResult } from "./params.js";
-import { fail } from "./tool-helpers.js";
+import type { Tool } from "../contracts.js";
+import { paramErr, paramOk, type ParamResult } from "../params.js";
+import { fail } from "../tool-helpers.js";
 import type { WorkspaceFs } from "./workspace-fs.js";
 
 export interface ListFilesToolOptions {
@@ -11,7 +11,6 @@ export interface ListFilesToolOptions {
   ignoredDirs?: string[];
 }
 
-// list_files 的调用参数契约。path 缺省时从 rootDir 根目录列出。
 export interface ListFilesParameters {
   path?: string;
 }
@@ -130,7 +129,6 @@ export function createListFilesTool(
       }
       const { path: requestedPath } = parsed.value;
 
-      // 默认路径是工具被授权的 rootDir
       const normalizedPath =
         typeof requestedPath === "string" && requestedPath.trim() !== ""
           ? requestedPath.trim()

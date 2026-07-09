@@ -1,7 +1,7 @@
 import type { ToolCall, ToolResult } from "@boundcoder/shared";
-import type { Tool } from "./contracts.js";
-import { paramErr, paramOk, type ParamResult } from "./params.js";
-import { fail } from "./tool-helpers.js";
+import type { Tool } from "../contracts.js";
+import { paramErr, paramOk, type ParamResult } from "../params.js";
+import { fail } from "../tool-helpers.js";
 import type { WorkspaceFs } from "./workspace-fs.js";
 
 export interface SearchCodeToolOptions {
@@ -10,7 +10,6 @@ export interface SearchCodeToolOptions {
   ignoredDirs?: string[];
 }
 
-// search_code 的调用参数契约。path 缺省时在 rootDir 根目录搜索。
 export interface SearchCodeParameters {
   query: string;
   path?: string;
@@ -143,7 +142,7 @@ export function createSearchCodeTool(options: SearchCodeToolOptions): Tool {
             continue;
           }
 
-          if (matches.length >= maxResults) { // 发现第 maxResults+1 条命中
+          if (matches.length >= maxResults) {
             truncated = true;
             break;
           }

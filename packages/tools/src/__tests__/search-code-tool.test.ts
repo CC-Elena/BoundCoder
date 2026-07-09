@@ -2,8 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createSearchCodeTool } from "../search-code-tool.js";
-import { createWorkspaceFs } from "../workspace-fs.js";
+import { createSearchCodeTool } from "../filesystem/search-code-tool.js";
+import { createWorkspaceFs } from "../filesystem/workspace-fs.js";
 
 const tempDirs: string[] = [];
 

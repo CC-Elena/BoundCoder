@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { Result } from "@boundcoder/shared";
-import { toErrorMessage } from "./tool-helpers.js";
+import { toErrorMessage } from "../tool-helpers.js";
 
 export interface WorkspaceFsOptions {
   rootDir: string;
@@ -45,7 +45,6 @@ function normalizeRelativePath(relativePath: string): string {
 export function createWorkspaceFs(options: WorkspaceFsOptions): WorkspaceFs {
   const rootDir = path.resolve(options.rootDir);
 
-  // 收口为私有校验，避免每个工具自行实现并发生漂移。
   function isPathInsideRoot(candidatePath: string): boolean {
     const relative = path.relative(rootDir, candidatePath);
     return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
