@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 
 // const task = "read:readme.md";
 // const task = "list:";
-const task = "search: createCounter";
+// const task = "search: createCounter";
+const task = "patch:src/counter.ts|add bounds check before decrement";
 const cliSourceDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRootDir = path.resolve(cliSourceDir, "../../..");
 const toolRegistry = createDefaultToolRegistry(

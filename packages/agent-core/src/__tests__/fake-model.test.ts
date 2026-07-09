@@ -127,6 +127,220 @@ describe("fakeModel", () => {
     });
   });
 
+  it("search_code 成功后应继续读取第一条命中文件", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "search: createCounter",
+      },
+      {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling search_code",
+        toolCall: {
+          id: "call-1",
+          name: "search_code",
+          parameters: {
+            query: "createCounter",
+          },
+        },
+      },
+      {
+        role: "tool",
+        kind: "tool_result",
+        content: "src/counter.ts:6:export function createCounter(initial = 0) {",
+        toolResult: {
+          toolCallId: "call-1",
+          output: "src/counter.ts:6:export function createCounter(initial = 0) {",
+          ok: true,
+        },
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response).toEqual({
+      role: "assistant",
+      kind: "tool_call",
+      content: "Calling read_file",
+      toolCall: {
+        id: "call-1",
+        name: "read_file",
+        parameters: {
+          path: "src/counter.ts",
+        },
+      },
+    });
+  });
+
+  it("search_code 成功但没有命中时直接返回最终回答", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "search: createCounter",
+      },
+      {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling search_code",
+        toolCall: {
+          id: "call-1",
+          name: "search_code",
+          parameters: {
+            query: "createCounter",
+          },
+        },
+      },
+      {
+        role: "tool",
+        kind: "tool_result",
+        content: "",
+        toolResult: {
+          toolCallId: "call-1",
+          output: "",
+          ok: true,
+        },
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response).toEqual({
+      role: "assistant",
+      kind: "text",
+      content: "已处理任务：",
+    });
+  });
+
+  it("search 流程中 read_file 成功后应继续调用 apply_patch", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "search: createCounter",
+      },
+      {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling read_file",
+        toolCall: {
+          id: "call-1",
+          name: "read_file",
+          parameters: {
+            path: "src/counter.ts",
+          },
+        },
+      },
+      {
+        role: "tool",
+        kind: "tool_result",
+        content: "export function createCounter() {}",
+        toolResult: {
+          toolCallId: "call-1",
+          output: "export function createCounter() {}",
+          ok: true,
+        },
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response).toEqual({
+      role: "assistant",
+      kind: "tool_call",
+      content: "Calling apply_patch",
+      toolCall: {
+        id: "call-1",
+        name: "apply_patch",
+        parameters: {
+          path: "src/counter.ts",
+          patch: "review and patch based on: createCounter",
+        },
+      },
+    });
+  });
+
+  it("search 流程中 apply_patch 成功后应返回最终回答", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "search: createCounter",
+      },
+      {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling apply_patch",
+        toolCall: {
+          id: "call-1",
+          name: "apply_patch",
+          parameters: {
+            path: "src/counter.ts",
+            patch: "review and patch based on: createCounter",
+          },
+        },
+      },
+      {
+        role: "tool",
+        kind: "tool_result",
+        content: "dry-run apply_patch: src/counter.ts",
+        toolResult: {
+          toolCallId: "call-1",
+          output: "dry-run apply_patch: src/counter.ts",
+          ok: true,
+        },
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response).toEqual({
+      role: "assistant",
+      kind: "text",
+      content: "已处理任务：dry-run apply_patch: src/counter.ts",
+    });
+  });
+
+  it("任务以 patch: 开头且包含 path|intent 时应调用 apply_patch 工具", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "patch: src/counter.ts | add validation before decrement",
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response.kind).toBe("tool_call");
+    expect(response.toolCall?.name).toBe("apply_patch");
+    expect(response.toolCall?.parameters).toEqual({
+      path: "src/counter.ts",
+      patch: "add validation before decrement",
+    });
+  });
+
+  it("patch: 缺少分隔符时仍调用 apply_patch，交由工具参数校验失败", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        kind: "text",
+        content: "patch: add validation only",
+      },
+    ];
+
+    const response = fakeModel(messages);
+
+    expect(response.kind).toBe("tool_call");
+    expect(response.toolCall?.name).toBe("apply_patch");
+    expect(response.toolCall?.parameters).toEqual({
+      path: "",
+      patch: "add validation only",
+    });
+  });
+
   it("有工具结果时返回最终答案", () => {
     // Arrange
     const messages: AgentMessage[] = [
@@ -218,6 +432,18 @@ describe("fakeModel", () => {
     // Arrange
     const messages: AgentMessage[] = [
       {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling fake_tool",
+        toolCall: {
+          id: "call-1",
+          name: "fake_tool",
+          parameters: {
+            task: "",
+          },
+        },
+      },
+      {
         role: "tool",
         kind: "tool_result",
         content: "",
@@ -244,6 +470,18 @@ describe("fakeModel", () => {
     // Arrange
     const messages: AgentMessage[] = [
       {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling fake_tool",
+        toolCall: {
+          id: "call-1",
+          name: "fake_tool",
+          parameters: {
+            task: "old-task",
+          },
+        },
+      },
+      {
         role: "tool",
         kind: "tool_result",
         content: "旧结果",
@@ -257,6 +495,18 @@ describe("fakeModel", () => {
         role: "assistant",
         kind: "text",
         content: "中间消息",
+      },
+      {
+        role: "assistant",
+        kind: "tool_call",
+        content: "Calling fake_tool",
+        toolCall: {
+          id: "call-2",
+          name: "fake_tool",
+          parameters: {
+            task: "new-task",
+          },
+        },
       },
       {
         role: "tool",
