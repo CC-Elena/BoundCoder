@@ -4,6 +4,7 @@ import type { CommandRunner, ToolRegistry } from "@boundcoder/tools";
 import type { AgentEvent } from "@boundcoder/shared";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { InteractiveCliApprovalHandler } from "./interactive-approval.js";
 
 const cliSourceDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRootDir = path.resolve(cliSourceDir, "../../..");
@@ -26,6 +27,15 @@ function logCliEvent(event: AgentEvent): void {
       break;
     case "tool_result":
       console.log("📦", event.toolResult.output);
+      break;
+    case "approval_requested":
+      console.log("🛂", event.toolCall.name);
+      break;
+    case "approval_resolved":
+      console.log(
+        "🧾",
+        event.approved ? "approved" : `rejected (${event.reason ?? "no reason"})`,
+      );
       break;
     case "run_end":
       console.log("✅", event.finalAnswer ?? "(none)");
@@ -186,6 +196,7 @@ const checks: Check[] = [
         },
       }, {
         toolRegistry,
+        approvalHandler: InteractiveCliApprovalHandler,
       });
 
       const finalOk = result.stopReason === "final_answer"

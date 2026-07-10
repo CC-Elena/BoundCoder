@@ -153,6 +153,111 @@ describe("runAgentLoop", () => {
     ]);
   });
 
+  it("审批通过后才执行工具，并发出 approval 事件", async () => {
+    const toolRegistry = {
+      execute: vi.fn(fakeTool.execute),
+    };
+    const requestApproval = vi.fn(async () => ({ approved: true as const }));
+    const approvalHandler = { requestApproval };
+    const events: string[] = [];
+
+    const result = await runAgentLoop(
+      {
+        task: "编写测试",
+        onEvent: (event) => {
+          events.push(event.type);
+        },
+      },
+      {
+        model: fakeModel,
+        toolRegistry,
+        approvalHandler,
+      },
+    );
+
+    expect(result.stopReason).toBe("final_answer");
+    expect(requestApproval).toHaveBeenCalledTimes(1);
+    expect(requestApproval).toHaveBeenCalledWith({
+      runtimeId: expect.stringMatching(/^runtime-/),
+      task: "编写测试",
+      step: 1,
+      messages: [
+        { role: "user", kind: "text", content: "编写测试" },
+        {
+          role: "assistant",
+          kind: "tool_call",
+          content: "Calling fake_tool",
+          toolCall: {
+            id: "call-1",
+            name: "fake_tool",
+            parameters: {
+              task: "编写测试",
+            },
+          },
+        },
+      ],
+      toolCall: {
+        id: "call-1",
+        name: "fake_tool",
+        parameters: {
+          task: "编写测试",
+        },
+      },
+    });
+    expect(toolRegistry.execute).toHaveBeenCalledTimes(1);
+    expect(events).toEqual([
+      "run_start",
+      "assistant_message",
+      "approval_requested",
+      "approval_resolved",
+      "tool_result",
+      "assistant_message",
+      "run_end",
+    ]);
+  });
+
+  it("审批拒绝时不执行工具，而是回灌合成失败结果", async () => {
+    const toolRegistry = {
+      execute: vi.fn(),
+    };
+    const approvalHandler = {
+      requestApproval: vi.fn(async () => ({
+        approved: false as const,
+        reason: "needs user confirmation",
+      })),
+    };
+
+    const result = await runAgentLoop(
+      { task: "编写测试" },
+      {
+        model: fakeModel,
+        toolRegistry,
+        approvalHandler,
+      },
+    );
+
+    expect(toolRegistry.execute).not.toHaveBeenCalled();
+    expect(result.stopReason).toBe("final_answer");
+    expect(result.finalAnswer).toBe("工具执行失败：approval rejected: needs user confirmation");
+    expect(result.messages.map(({ role, kind }) => ({ role, kind }))).toEqual([
+      { role: "user", kind: "text" },
+      { role: "assistant", kind: "tool_call" },
+      { role: "tool", kind: "tool_result" },
+      { role: "assistant", kind: "text" },
+    ]);
+    expect(result.messages[2]).toMatchObject({
+      role: "tool",
+      kind: "tool_result",
+      content: "approval rejected: needs user confirmation",
+      toolResult: {
+        toolCallId: "call-1",
+        ok: false,
+        output: "",
+        errorMessage: "approval rejected: needs user confirmation",
+      },
+    });
+  });
+
   it("模型返回缺少 toolCall 的 tool_call 消息时，应安全停止", async () => {
     const model = vi.fn(() => ({
       role: "assistant" as const,

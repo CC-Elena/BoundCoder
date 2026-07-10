@@ -3,11 +3,19 @@ import type {
 	AgentEvent,
 	AgentRunOptions,
 	AgentRunResult,
+	ToolResult,
 } from "@boundcoder/shared";
 import { fakeModel } from "../model/fake-model.js";
-import type { AgentLoopDependencies } from "../runtime/contracts.js";
+import { createApprovalRejectedToolResult } from "../runtime/approval/index.js";
+import {
+	type AgentLoopDependencies,
+} from "../runtime/contracts.js";
 
 const DEFAULT_MAX_STEPS = 5;
+
+function createRuntimeId(): string {
+	return `runtime-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function yieldToEventLoop(): Promise<void> {
 	return new Promise((resolve) => {
@@ -30,6 +38,8 @@ export async function runAgentLoop(
 
 	const model = dependencies.model ?? fakeModel;
 	const toolRegistry = dependencies.toolRegistry;
+	const approvalHandler = dependencies.approvalHandler;
+	const runtimeId = createRuntimeId();
 	if (!toolRegistry) {
 		throw new Error("toolRegistry is required");
 	}
@@ -78,8 +88,45 @@ export async function runAgentLoop(
 				messages,
 				stopReason: "final_answer",
 			};
-		} else if (modelResponse.kind === "tool_call" && modelResponse.toolCall) {
-			const toolResult = toolRegistry.execute(modelResponse.toolCall);
+				} else if (modelResponse.kind === "tool_call" && modelResponse.toolCall) {
+					let toolResult: ToolResult;
+
+					if (approvalHandler) {
+						emitEvent(options.onEvent, {
+							type: "approval_requested",
+							step: loopCount + 1,
+							toolCall: modelResponse.toolCall,
+							timestamp: Date.now(),
+						});
+
+						await yieldToEventLoop();
+
+						const decision = await approvalHandler.requestApproval({
+							runtimeId,
+							task: options.task,
+							step: loopCount + 1,
+							messages: [...messages],
+							toolCall: modelResponse.toolCall,
+						});
+
+						emitEvent(options.onEvent, {
+							type: "approval_resolved",
+							step: loopCount + 1,
+							toolCall: modelResponse.toolCall,
+							approved: decision.approved,
+							reason: decision.approved ? undefined : decision.reason,
+							timestamp: Date.now(),
+						});
+
+						await yieldToEventLoop();
+
+						toolResult = decision.approved
+							? toolRegistry.execute(modelResponse.toolCall)
+							: createApprovalRejectedToolResult(modelResponse.toolCall, decision);
+					} else {
+						toolResult = toolRegistry.execute(modelResponse.toolCall);
+					}
+
 			messages.push({
 				role: "tool",
 				kind: "tool_result",

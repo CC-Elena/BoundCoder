@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { AgentEvent } from "@boundcoder/shared";
 import { createDemoRun } from "../../features/agentTimeline/demo";
 import { DEFAULT_AGENT_TASK, useAgentTimelineStore } from "../../features/agentTimeline/store";
+import { createWebApprovalController, type WebApprovalController } from "../../features/agentTimeline/web-approval";
 import { AppHeader } from "../../app/components/AppHeader";
 import { SidebarPanel } from "../../app/components/SidebarPanel";
 import { ContentPanel } from "../../app/components/ContentPanel";
@@ -21,16 +22,27 @@ export function AgentTimelinePage() {
   const status = useAgentTimelineStore((state) => state.status);
   const finalAnswer = useAgentTimelineStore((state) => state.finalAnswer);
   const isRunning = useAgentTimelineStore((state) => state.isRunning);
+  const pendingApproval = useAgentTimelineStore((state) => state.pendingApproval);
   const replayedEvents = useAgentTimelineStore((state) => state.replayedEvents);
   const selectedEventIndex = useAgentTimelineStore((state) => state.selectedEventIndex);
   const setTask = useAgentTimelineStore((state) => state.setTask);
   const beginRun = useAgentTimelineStore((state) => state.beginRun);
   const setFullEvents = useAgentTimelineStore((state) => state.setFullEvents);
   const setReplayedEvents = useAgentTimelineStore((state) => state.setReplayedEvents);
+  const setPendingApproval = useAgentTimelineStore((state) => state.setPendingApproval);
   const setSelectedEventIndex = useAgentTimelineStore((state) => state.setSelectedEventIndex);
   const finishRun = useAgentTimelineStore((state) => state.finishRun);
   const reset = useAgentTimelineStore((state) => state.reset);
   const playbackTimersRef = useRef<number[]>([]);
+  const approvalControllerRef = useRef<WebApprovalController | null>(null);
+
+  if (!approvalControllerRef.current) {
+    approvalControllerRef.current = createWebApprovalController({
+      onPendingChange(pending) {
+        setPendingApproval(pending);
+      },
+    });
+  }
 
   const clearPlaybackTimers = useCallback(() => {
     for (const timerId of playbackTimersRef.current) {
@@ -56,6 +68,11 @@ export function AgentTimelinePage() {
 
     const collectedEvents: AgentEvent[] = [];
     const replayedEventsBuffer: AgentEvent[] = [];
+    const approvalHandler = approvalControllerRef.current;
+    if (!approvalHandler) {
+      throw new Error("approval controller not initialized");
+    }
+    approvalHandler.resetRun();
 
     const result = await createDemoRun(task.trim(), (event) => {
       collectedEvents.push(event);
@@ -67,6 +84,8 @@ export function AgentTimelinePage() {
         setReplayedEvents([...replayedEventsBuffer]);
         setSelectedEventIndex(replayedEventsBuffer.length - 1);
       });
+    }, {
+      approvalHandler,
     });
 
     schedulePlayback(collectedEvents.length * REPLAY_DELAY_MS, () => {
@@ -82,8 +101,9 @@ export function AgentTimelinePage() {
     clearPlaybackTimers();
     reset();
     setTask(DEFAULT_AGENT_TASK);
+    setPendingApproval(null);
     setSelectedEventIndex(null);
-  }, [clearPlaybackTimers, reset, setSelectedEventIndex, setTask]);
+  }, [clearPlaybackTimers, reset, setPendingApproval, setSelectedEventIndex, setTask]);
 
   return (
     <main className={ds.appShell}>
@@ -108,11 +128,18 @@ export function AgentTimelinePage() {
           isRunning={isRunning}
           status={status}
           finalAnswer={finalAnswer}
+          pendingApproval={pendingApproval}
           onTaskChange={setTask}
           onRun={() => {
             void runDemo();
           }}
           onReset={resetDemo}
+          onApprovePending={(rememberToolName) => {
+            approvalControllerRef.current?.approvePending(rememberToolName);
+          }}
+          onRejectPending={(reason) => {
+            approvalControllerRef.current?.rejectPending(reason);
+          }}
         />
 
         <ContentPanel

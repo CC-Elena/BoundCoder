@@ -3,7 +3,7 @@ export {
   agentMessageSchema,
   agentRunRequestSchema,
   agentRunResponseSchema,
-  stopReasonSchema,
+  agentStopReasonSchema,
   toolCallSchema,
   toolResultSchema,
   type AgentEventPayload,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const stopReasonSchema = z.enum(["final_answer", "invalid_tool_call", "model_no_final"]);
+export const agentStopReasonSchema = z.enum(["final_answer", "invalid_tool_call", "model_no_final"]);
 
 export const toolCallSchema = z.object({
   id: z.string().min(1),
@@ -50,6 +50,20 @@ export const agentEventSchema = z.discriminatedUnion("type", [
     timestamp: z.number(),
   }),
   z.object({
+    type: z.literal("approval_requested"),
+    step: z.number().int().nonnegative(),
+    toolCall: toolCallSchema,
+    timestamp: z.number(),
+  }),
+  z.object({
+    type: z.literal("approval_resolved"),
+    step: z.number().int().nonnegative(),
+    toolCall: toolCallSchema,
+    approved: z.boolean(),
+    reason: z.string().optional(),
+    timestamp: z.number(),
+  }),
+  z.object({
     type: z.literal("tool_result"),
     step: z.number().int().nonnegative(),
     toolResult: toolResultSchema,
@@ -57,7 +71,7 @@ export const agentEventSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("run_end"),
-    stopReason: stopReasonSchema,
+    stopReason: agentStopReasonSchema,
     finalAnswer: z.string().nullable(),
     timestamp: z.number(),
   }),
@@ -70,7 +84,7 @@ export const agentRunRequestSchema = z.object({
 
 export const agentRunResponseSchema = z.object({
   finalAnswer: z.string().nullable(),
-  stopReason: stopReasonSchema,
+  stopReason: agentStopReasonSchema,
   messages: z.array(agentMessageSchema),
   events: z.array(agentEventSchema).optional(),
 });

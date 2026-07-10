@@ -44,11 +44,29 @@ function describeEvent(event: AgentEvent): { title: string; detail: string; badg
           : event.toolResult.errorMessage ?? "unknown error",
         badge: `step ${event.step}`,
       };
+    case "approval_requested":
+      return {
+        title: `Approval requested for ${event.toolCall.name}`,
+        detail: JSON.stringify(event.toolCall.parameters, null, 2),
+        badge: `step ${event.step}`,
+      };
+    case "approval_resolved":
+      return {
+        title: event.approved ? "Approval granted" : "Approval rejected",
+        detail: event.approved ? "approved" : (event.reason ?? "no reason"),
+        badge: `step ${event.step}`,
+      };
     case "run_end":
       return {
         title: `Run ended: ${event.stopReason}`,
         detail: event.finalAnswer ?? "(no final answer)",
         badge: "end",
+      };
+    default:
+      return {
+        title: "Unknown event",
+        detail: JSON.stringify(event),
+        badge: "unknown",
       };
   }
 }

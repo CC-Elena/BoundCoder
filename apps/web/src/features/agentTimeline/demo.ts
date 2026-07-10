@@ -1,4 +1,5 @@
-import type { AgentEvent, StopReason, ToolCall, ToolResult } from "@boundcoder/shared";
+import type { AgentEvent, AgentMessage, AgentStopReason, ToolCall, ToolResult } from "@boundcoder/shared";
+import type { WebApprovalHandler } from "./web-approval";
 
 const COUNTER_SOURCE = `export function createCounter(initial = 0) {
   let count = initial;
@@ -23,8 +24,12 @@ interface DemoToolRegistry {
 }
 
 interface DemoRunResult {
-  stopReason: StopReason;
+  stopReason: AgentStopReason;
   finalAnswer: string | null;
+}
+
+interface DemoRunOptions {
+  approvalHandler?: WebApprovalHandler;
 }
 
 const FAKE_TOOL_NAME = "fake_tool";
@@ -190,7 +195,7 @@ export function createDemoToolRegistry(): DemoToolRegistry {
   };
 }
 
-function findLatestToolResult(messages: Array<{ kind: string; toolResult?: ToolResult }>): ToolResult | null {
+function findLatestToolResult(messages: AgentMessage[]): ToolResult | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (message?.kind === "tool_result" && message.toolResult) {
@@ -200,7 +205,7 @@ function findLatestToolResult(messages: Array<{ kind: string; toolResult?: ToolR
   return null;
 }
 
-function findLatestToolCall(messages: Array<{ kind: string; toolCall?: ToolCall }>): ToolCall | null {
+function findLatestToolCall(messages: AgentMessage[]): ToolCall | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (message?.kind === "tool_call" && message.toolCall) {
@@ -210,7 +215,7 @@ function findLatestToolCall(messages: Array<{ kind: string; toolCall?: ToolCall 
   return null;
 }
 
-function findLatestToolExecution(messages: Array<{ kind: string; toolCall?: ToolCall; toolResult?: ToolResult }>): { call: ToolCall; result: ToolResult } | null {
+function findLatestToolExecution(messages: AgentMessage[]): { call: ToolCall; result: ToolResult } | null {
   const latestResult = findLatestToolResult(messages);
   if (!latestResult) {
     return null;
@@ -285,13 +290,30 @@ function toFinalAnswer(result: ToolResult): string {
     : `工具执行失败：${result.errorMessage ?? "unknown error"}`;
 }
 
-export function createDemoRun(task: string, onEvent: (event: AgentEvent) => void): DemoRunResult {
+function createRuntimeId(): string {
+  return `web-runtime-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createApprovalRejectedToolResult(call: ToolCall, reason?: string): ToolResult {
+  const normalizedReason = reason?.trim();
+  return {
+    toolCallId: call.id,
+    ok: false,
+    output: "",
+    errorMessage: normalizedReason
+      ? `approval rejected: ${normalizedReason}`
+      : "approval rejected",
+  };
+}
+
+export async function createDemoRun(
+  task: string,
+  onEvent: (event: AgentEvent) => void,
+  options: DemoRunOptions = {},
+): Promise<DemoRunResult> {
   const toolRegistry = createDemoToolRegistry();
-  const messages: Array<{
-    kind: string;
-    toolCall?: ToolCall;
-    toolResult?: ToolResult;
-  }> = [];
+  const messages: AgentMessage[] = [];
+  const runtimeId = createRuntimeId();
 
   onEvent({ type: "run_start", task, timestamp: Date.now() });
 
@@ -335,16 +357,57 @@ export function createDemoRun(task: string, onEvent: (event: AgentEvent) => void
       },
       timestamp: Date.now(),
     });
-    messages.push({ kind: "tool_call", toolCall: nextToolCall });
+    messages.push({
+      role: "assistant",
+      kind: "tool_call",
+      content: `Calling ${nextToolCall.name}`,
+      toolCall: nextToolCall,
+    });
 
-    const toolResult = toolRegistry.execute(nextToolCall);
+    let toolResult: ToolResult;
+    if (options.approvalHandler) {
+      onEvent({
+        type: "approval_requested",
+        step,
+        toolCall: nextToolCall,
+        timestamp: Date.now(),
+      });
+
+      const decision = await options.approvalHandler.requestApproval({
+        runtimeId,
+        task,
+        step,
+        toolCall: nextToolCall,
+      });
+
+      onEvent({
+        type: "approval_resolved",
+        step,
+        toolCall: nextToolCall,
+        approved: decision.approved,
+        reason: decision.approved ? undefined : decision.reason,
+        timestamp: Date.now(),
+      });
+
+      toolResult = decision.approved
+        ? toolRegistry.execute(nextToolCall)
+        : createApprovalRejectedToolResult(nextToolCall, decision.reason);
+    } else {
+      toolResult = toolRegistry.execute(nextToolCall);
+    }
+
     onEvent({
       type: "tool_result",
       step,
       toolResult,
       timestamp: Date.now(),
     });
-    messages.push({ kind: "tool_result", toolResult });
+    messages.push({
+      role: "tool",
+      kind: "tool_result",
+      content: toolResult.ok ? toolResult.output : toolResult.errorMessage ?? "tool failed",
+      toolResult,
+    });
 
     latestExecution = { call: nextToolCall, result: toolResult };
     step += 1;

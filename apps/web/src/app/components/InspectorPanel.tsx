@@ -17,8 +17,14 @@ function summarize(event: AgentEvent): string {
         : "Model returned text";
     case "tool_result":
       return event.toolResult.ok ? "Tool succeeded" : `Tool failed: ${event.toolResult.errorMessage ?? "unknown"}`;
+    case "approval_requested":
+      return `Approval requested for ${event.toolCall.name}`;
+    case "approval_resolved":
+      return event.approved ? "Approval resolved: approved" : `Approval resolved: rejected (${event.reason ?? "no reason"})`;
     case "run_end":
       return `Run ended with ${event.stopReason}`;
+    default:
+      return "Unknown event";
   }
 }
 
