@@ -1,4 +1,4 @@
-import { runAgentLoop } from "@boundcoder/agent-core";
+import { createLoggingHook, runAgentLoop } from "@boundcoder/agent-core";
 import { createDefaultToolRegistry } from "@boundcoder/tools";
 import type { CommandRunner, ToolRegistry } from "@boundcoder/tools";
 import type { AgentEvent } from "@boundcoder/shared";
@@ -9,6 +9,10 @@ import { InteractiveCliApprovalHandler } from "./interactive-approval.js";
 const cliSourceDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRootDir = path.resolve(cliSourceDir, "../../..");
 const sandboxRootDir = path.join(repoRootDir, "apps/sandbox-repo");
+
+const runtimeLoggingHook = createLoggingHook((entry) => {
+  console.error(JSON.stringify(entry),'logging');
+});
 
 const fakeRunner: CommandRunner = (command, cwd) => ({
   ok: true,
@@ -197,6 +201,7 @@ const checks: Check[] = [
       }, {
         toolRegistry,
         approvalHandler: InteractiveCliApprovalHandler,
+        runtimeHook: runtimeLoggingHook,
       });
 
       const finalOk = result.stopReason === "final_answer"

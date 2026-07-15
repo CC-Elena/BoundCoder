@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { createLoggingHook } from "@boundcoder/agent-core";
 import type { AgentEvent } from "@boundcoder/shared";
 import { createDemoRun } from "../../features/agentTimeline/demo";
 import { DEFAULT_AGENT_TASK, useAgentTimelineStore } from "../../features/agentTimeline/store";
@@ -16,6 +17,10 @@ function delay(ms: number): Promise<void> {
 }
 
 const REPLAY_DELAY_MS = 180;
+
+const runtimeLoggingHook = createLoggingHook((entry) => {
+  console.info("[runtime]", entry);
+});
 
 export function AgentTimelinePage() {
   const task = useAgentTimelineStore((state) => state.task);
@@ -86,6 +91,7 @@ export function AgentTimelinePage() {
       });
     }, {
       approvalHandler,
+      runtimeHook: runtimeLoggingHook,
     });
 
     schedulePlayback(collectedEvents.length * REPLAY_DELAY_MS, () => {

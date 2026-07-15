@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@boundcoder/agent-core": "workspace:*",
     "@boundcoder/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "react": "^19.2.7",

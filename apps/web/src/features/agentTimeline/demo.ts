@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentMessage, AgentStopReason, ToolCall, ToolResult } from "@boundcoder/shared";
+import type { RuntimeHook } from "@boundcoder/agent-core";
 import type { WebApprovalHandler } from "./web-approval";
 
 const COUNTER_SOURCE = `export function createCounter(initial = 0) {
@@ -30,6 +31,7 @@ interface DemoRunResult {
 
 interface DemoRunOptions {
   approvalHandler?: WebApprovalHandler;
+  runtimeHook?: RuntimeHook;
 }
 
 const FAKE_TOOL_NAME = "fake_tool";
@@ -364,6 +366,24 @@ export async function createDemoRun(
       toolCall: nextToolCall,
     });
 
+    if (options.runtimeHook?.onToolCall) {
+      try {
+        const payload = structuredClone({
+          runtime: {
+            runtimeId,
+            task,
+            step,
+            messages,
+          },
+          toolCall: nextToolCall,
+        });
+
+        await options.runtimeHook.onToolCall(payload);
+      } catch (error) {
+        console.error("[runtime-hook] onToolCall failed", error);
+      }
+    }
+
     let toolResult: ToolResult;
     if (options.approvalHandler) {
       onEvent({
@@ -396,17 +416,37 @@ export async function createDemoRun(
       toolResult = toolRegistry.execute(nextToolCall);
     }
 
-    onEvent({
-      type: "tool_result",
-      step,
-      toolResult,
-      timestamp: Date.now(),
-    });
     messages.push({
       role: "tool",
       kind: "tool_result",
       content: toolResult.ok ? toolResult.output : toolResult.errorMessage ?? "tool failed",
       toolResult,
+    });
+
+    if (options.runtimeHook?.onToolResult) {
+      try {
+        const payload = structuredClone({
+          runtime: {
+            runtimeId,
+            task,
+            step,
+            messages,
+          },
+          toolCall: nextToolCall,
+          toolResult,
+        });
+
+        await options.runtimeHook.onToolResult(payload);
+      } catch (error) {
+        console.error("[runtime-hook] onToolResult failed", error);
+      }
+    }
+
+    onEvent({
+      type: "tool_result",
+      step,
+      toolResult,
+      timestamp: Date.now(),
     });
 
     latestExecution = { call: nextToolCall, result: toolResult };
