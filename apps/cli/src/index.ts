@@ -1,4 +1,10 @@
-import { createLoggingHook, runAgentLoop } from "@boundcoder/agent-core";
+import {
+  composeRuntimeHooks,
+  createInMemoryRuntimeMetrics,
+  createLoggingHook,
+  createMetricsHook,
+  runAgentLoop,
+} from "@boundcoder/agent-core";
 import { createDefaultToolRegistry } from "@boundcoder/tools";
 import type { CommandRunner, ToolRegistry } from "@boundcoder/tools";
 import type { AgentEvent } from "@boundcoder/shared";
@@ -10,9 +16,13 @@ const cliSourceDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRootDir = path.resolve(cliSourceDir, "../../..");
 const sandboxRootDir = path.join(repoRootDir, "apps/sandbox-repo");
 
-const runtimeLoggingHook = createLoggingHook((entry) => {
-  console.error(JSON.stringify(entry),'logging');
-});
+const runtimeMetrics = createInMemoryRuntimeMetrics();
+const runtimeHook = composeRuntimeHooks([
+  createLoggingHook((entry) => {
+    console.error(JSON.stringify(entry), "logging");
+  }),
+  createMetricsHook(runtimeMetrics.record),
+]);
 
 const fakeRunner: CommandRunner = (command, cwd) => ({
   ok: true,
@@ -201,8 +211,12 @@ const checks: Check[] = [
       }, {
         toolRegistry,
         approvalHandler: InteractiveCliApprovalHandler,
-        runtimeHook: runtimeLoggingHook,
+        runtimeHook,
       });
+
+      console.error(
+        `[runtime-metrics] ${JSON.stringify(runtimeMetrics.snapshot())}`,
+      );
 
       const finalOk = result.stopReason === "final_answer"
         && typeof result.finalAnswer === "string"
