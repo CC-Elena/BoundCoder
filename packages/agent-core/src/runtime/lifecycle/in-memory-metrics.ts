@@ -29,6 +29,8 @@ function toSortedRecord<T>(entries: Iterable<[string, T]>): Record<string, T> {
 }
 
 export function createInMemoryRuntimeMetrics(): InMemoryRuntimeMetrics {
+  // 第一版演示存储：生命周期与 CLI 进程或 Web 页面一致，重启后清空。
+  // TODO: 需要跨进程聚合时，用 Prometheus/OpenTelemetry Adapter 替换该实现。
   const toolCalls = new Map<string, number>();
   const toolResults = new Map<string, ToolResultOutcomeCounts>();
 
@@ -49,6 +51,7 @@ export function createInMemoryRuntimeMetrics(): InMemoryRuntimeMetrics {
   return {
     record,
     snapshot() {
+      // 返回副本，展示层修改 snapshot 不会破坏内部累计值。
       return {
         toolCallsTotal: toSortedRecord(toolCalls.entries()),
         toolResultsTotal: toSortedRecord(

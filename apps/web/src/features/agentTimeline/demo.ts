@@ -313,6 +313,7 @@ export async function createDemoRun(
   onEvent: (event: AgentEvent) => void,
   options: DemoRunOptions = {},
 ): Promise<DemoRunResult> {
+  // TODO: Web 改用正式 runAgentLoop 后，删除这里重复的 Lifecycle 调度逻辑。
   const toolRegistry = createDemoToolRegistry();
   const messages: AgentMessage[] = [];
   const runtimeId = createRuntimeId();
@@ -369,6 +370,7 @@ export async function createDemoRun(
     if (options.runtimeHook?.onToolCall) {
       try {
         const payload = structuredClone({
+          occurredAt: Date.now(),
           runtime: {
             runtimeId,
             task,
@@ -426,6 +428,7 @@ export async function createDemoRun(
     if (options.runtimeHook?.onToolResult) {
       try {
         const payload = structuredClone({
+          occurredAt: Date.now(),
           runtime: {
             runtimeId,
             task,

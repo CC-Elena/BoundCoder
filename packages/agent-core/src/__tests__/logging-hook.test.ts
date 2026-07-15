@@ -6,6 +6,7 @@ import {
 } from "../runtime/lifecycle/index.js";
 
 const toolCallPayload: ToolCallHookPayload = {
+  occurredAt: 100,
   runtime: {
     runtimeId: "runtime-1",
     task: "读取包含敏感信息的文件",

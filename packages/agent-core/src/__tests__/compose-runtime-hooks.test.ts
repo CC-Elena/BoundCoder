@@ -6,6 +6,7 @@ import {
 } from "../runtime/lifecycle/index.js";
 
 const toolCallPayload: ToolCallHookPayload = {
+  occurredAt: 100,
   runtime: {
     runtimeId: "runtime-1",
     task: "读取文件",
@@ -25,6 +26,15 @@ const toolResultPayload: ToolResultHookPayload = {
     toolCallId: "call-1",
     ok: true,
     output: "file content",
+  },
+};
+
+const runEndPayload = {
+  occurredAt: 300,
+  runtime: toolCallPayload.runtime,
+  outcome: {
+    status: "failed" as const,
+    errorMessage: "runtime failed",
   },
 };
 
@@ -108,5 +118,31 @@ describe("composeRuntimeHooks", () => {
     await composedHook.onToolCall?.(toolCallPayload);
 
     expect(observedPaths).toEqual(["safe.txt"]);
+  });
+
+  it("onRunEnd 中一个 Hook 失败时应继续清理后续 Hook", async () => {
+    const hookError = new Error("first cleanup failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const secondCleanup = vi.fn();
+    const composedHook = composeRuntimeHooks([
+      {
+        onRunEnd() {
+          throw hookError;
+        },
+      },
+      {
+        onRunEnd: secondCleanup,
+      },
+    ]);
+
+    await composedHook.onRunEnd?.(runEndPayload);
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[runtime-hook] onRunEnd hook 0 failed",
+      hookError,
+    );
+    expect(secondCleanup).toHaveBeenCalledTimes(1);
+
+    consoleError.mockRestore();
   });
 });

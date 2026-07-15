@@ -7,6 +7,7 @@ import type {
 } from "@boundcoder/shared";
 import { fakeModel } from "../model/fake-model.js";
 import { createApprovalRejectedToolResult } from "../runtime/approval/index.js";
+import type { RuntimeEndOutcome } from "../runtime/lifecycle/index.js";
 import {
 	type AgentLoopDependencies,
 } from "../runtime/contracts.js";
@@ -28,6 +29,10 @@ function emitEvent(
 	event: AgentEvent,
 ): void {
 	onEvent?.(event);
+}
+
+function normalizeErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 export async function runAgentLoop(
@@ -53,6 +58,18 @@ export async function runAgentLoop(
 			content: options.task,
 		},
 	];
+	let currentStep = 0;
+	let endOutcome: RuntimeEndOutcome | undefined;
+
+	function completeRun(result: AgentRunResult): AgentRunResult {
+		endOutcome = {
+			status: "completed",
+			stopReason: result.stopReason,
+		};
+		return result;
+	}
+
+	try {
 
 	emitEvent(options.onEvent, {
 		type: "run_start",
@@ -63,6 +80,7 @@ export async function runAgentLoop(
 	await yieldToEventLoop(); // 模拟异步
 
 	for (let loopCount = 0; loopCount < maxSteps; loopCount++) {
+		currentStep = loopCount + 1;
 		const modelResponse = model(messages);
 		messages.push(modelResponse);
 
@@ -85,17 +103,19 @@ export async function runAgentLoop(
 
 			await yieldToEventLoop();
 
-			return {
+			return completeRun({
 				finalAnswer: modelResponse.content,
 				messages,
 				stopReason: "final_answer",
-			};
+			});
 				} else if (modelResponse.kind === "tool_call" && modelResponse.toolCall) {
 					let toolResult: ToolResult;
 
 					if (runtimeHook?.onToolCall) {
 						try {
 							const payload = structuredClone({ // 快照方式保证Hook 即使强制修改参数，也不会影响 Runtime 原对象
+								// 在进入 Hook 调度前记录，Trace 不受 Hook 注册顺序影响。
+								occurredAt: Date.now(),
 								runtime: {
 									runtimeId,
 									task: options.task,
@@ -159,6 +179,8 @@ export async function runAgentLoop(
 			if (runtimeHook?.onToolResult) {
 				try {
 					const payload = structuredClone({
+						// messages 已提交 ToolResult，此时记录结果事实的发生时间。
+						occurredAt: Date.now(),
 						runtime: {
 							runtimeId,
 							task: options.task,
@@ -195,11 +217,11 @@ export async function runAgentLoop(
 
 			await yieldToEventLoop();
 
-			return {
+			return completeRun({
 				finalAnswer: null,
 				messages,
 				stopReason: "invalid_tool_call",
-			};
+			});
 		}
 	}
 
@@ -212,9 +234,37 @@ export async function runAgentLoop(
 
 	await yieldToEventLoop();
 
-	return {
+	return completeRun({
 		finalAnswer: null,
 		messages,
 		stopReason: "model_no_final",
-	};
+	});
+	} catch (error) {
+		endOutcome = {
+			status: "failed",
+			errorMessage: normalizeErrorMessage(error),
+		};
+		// Lifecycle 只观察失败，不能把 Runtime 异常转换成正常结果。
+		throw error;
+	} finally {
+		if (runtimeHook?.onRunEnd && endOutcome) {
+			try {
+				const payload = structuredClone({
+					occurredAt: Date.now(),
+					runtime: {
+						runtimeId,
+						task: options.task,
+						step: currentStep,
+						messages,
+					},
+					outcome: endOutcome,
+				});
+
+				await runtimeHook.onRunEnd(payload);
+			} catch (hookError) {
+				// 终止 Hook 失败不能覆盖 Runtime 原始结果或异常。
+				console.error("[runtime-hook] onRunEnd failed", hookError);
+			}
+		}
+	}
 }

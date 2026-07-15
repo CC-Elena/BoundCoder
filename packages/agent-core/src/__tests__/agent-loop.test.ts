@@ -45,6 +45,87 @@ describe("runAgentLoop", () => {
     ]);
   });
 
+  it("正常结束时应恰好触发一次 onRunEnd", async () => {
+    const onRunEnd = vi.fn();
+    const model = vi.fn(() => ({
+      role: "assistant" as const,
+      kind: "text" as const,
+      content: "直接完成",
+    }));
+
+    await runAgentLoop(
+      { task: "编写测试" },
+      {
+        model,
+        toolRegistry: { execute: vi.fn() },
+        runtimeHook: { onRunEnd },
+      },
+    );
+
+    expect(onRunEnd).toHaveBeenCalledTimes(1);
+    expect(onRunEnd).toHaveBeenCalledWith({
+      occurredAt: expect.any(Number),
+      runtime: {
+        runtimeId: expect.stringMatching(/^runtime-/),
+        task: "编写测试",
+        step: 1,
+        messages: [
+          { role: "user", kind: "text", content: "编写测试" },
+          {
+            role: "assistant",
+            kind: "text",
+            content: "直接完成",
+          },
+        ],
+      },
+      outcome: {
+        status: "completed",
+        stopReason: "final_answer",
+      },
+    });
+  });
+
+  it("Runtime 异常时应通知 onRunEnd 并重新抛出原始异常", async () => {
+    const runtimeError = new Error("approval service unavailable");
+    const hookError = new Error("run end hook unavailable");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onRunEnd = vi.fn(() => {
+      throw hookError;
+    });
+
+    const runPromise = runAgentLoop(
+      { task: "编写测试" },
+      {
+        model: fakeModel,
+        toolRegistry: { execute: vi.fn(fakeTool.execute) },
+        approvalHandler: {
+          requestApproval: vi.fn(async () => {
+            throw runtimeError;
+          }),
+        },
+        runtimeHook: { onRunEnd },
+      },
+    );
+
+    await expect(runPromise).rejects.toBe(runtimeError);
+    expect(onRunEnd).toHaveBeenCalledTimes(1);
+    expect(onRunEnd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtime: expect.objectContaining({ step: 1 }),
+        outcome: {
+          status: "failed",
+          errorMessage: "approval service unavailable",
+        },
+      }),
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      "[runtime-hook] onRunEnd failed",
+      hookError,
+    );
+
+    consoleError.mockRestore();
+  });
+
   it("注入模型和工具后，完成最小闭环", async () => {
     const toolRegistry = createToolRegistry([fakeTool]);
     const events: Array<{ type: string }> = [];
@@ -179,6 +260,7 @@ describe("runAgentLoop", () => {
     expect(callOrder).toEqual(["onToolCall", "approval"]);
     expect(onToolCall).toHaveBeenCalledTimes(1);
     expect(onToolCall).toHaveBeenCalledWith({
+      occurredAt: expect.any(Number),
       runtime: {
         runtimeId: expect.stringMatching(/^runtime-/),
         task: "编写测试",
@@ -293,6 +375,7 @@ describe("runAgentLoop", () => {
     expect(result.stopReason).toBe("final_answer");
     expect(onToolResult).toHaveBeenCalledTimes(1);
     expect(onToolResult).toHaveBeenCalledWith({
+      occurredAt: expect.any(Number),
       runtime: {
         runtimeId: expect.stringMatching(/^runtime-/),
         task: "编写测试",
