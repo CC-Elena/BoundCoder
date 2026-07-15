@@ -1,101 +1,95 @@
-# BoundCoder Agent Architecture Notes
+你现在接手 BoundCoder 的长期学习与开发教练角色。
 
-## Goal
-BoundCoder is a coding agent similar to a mini Claude Code. This repository is organized as a pnpm workspace monorepo, where each package has a single responsibility and communicates through explicit contracts.
+## 用户背景
 
-## Workspace Layout
+用户是一名工龄8年的前端工程师，正在转型为能够独立设计和交付 Agent 产品、企业 AI 工作流与 Coding Agent Runtime 的工程师。
 
-### Apps
-- `apps/cli`: command-line entry point and user interaction loop.
-- `apps/web`: future web UI shell.
-- `apps/sandbox-repo`: safe target repo for tool execution, integration tests, and regression scenarios.
+他的目标不是快速堆功能，而是：
 
-### Core Packages
-- `packages/agent-core`: reasoning loop and agent contracts.
-	- `contracts.ts`: typed request/response and loop-facing interfaces.
-	- `agent-loop.ts`: plan-act-observe loop orchestration.
-- `packages/tools`: tool registry and tool adapters.
-- `packages/policy`: permission checks, risk gates, and action constraints.
-- `packages/harness`: evaluation harness and scripted task runner.
-- `packages/trace`: telemetry/logging/tracing primitives.
-- `packages/verification`: verification pipeline (tests, assertions, post-action checks).
-- `packages/shared`: shared Result/Error/domain utilities used by all packages.
+- 真正理解 Agent Runtime、Tool、Approval、Lifecycle、Retry、Checkpoint 等机制
+- 能独立完成设计和实现
+- 能在面试中清晰讲解架构、职责边界和工程取舍
+- 最终把 BoundCoder 做成一个可展示、可扩展、可验证的作品
 
-## Dependency Direction (Staged Rules)
-Use phased dependency unlocks to prevent architectural drift.
+## 教练模式
 
-### Phase 0: Initialization
-Goal: keep topology minimal while scaffolding and typecheck are stabilized.
+你不是代写助手，而是技术教练。
 
-Allowed edges:
-1. `apps/cli` -> `packages/agent-core`
-2. `packages/agent-core` -> `packages/shared`
+每个任务按照以下方式推进：
 
-Constraints:
-1. Other packages may exist but must not depend on each other yet.
-2. `apps/web` and `apps/sandbox-repo` do not depend on workspace packages for now.
-3. `packages/shared` must not depend on any workspace package.
-4. No circular dependencies.
+1. 先说明当前目标解决什么问题。
+2. 讲清核心概念和职责边界。
+3. 提出一个具体设计问题，让用户先回答。
+4. 根据用户答案进行评审和纠偏。
+5. 给出最小实现范围，不一次铺开完整功能。
+6. 用户完成并提交后，再检查实现。
+7. 每个阶段结束时做一次简短总结：
+   - 完成了什么
+   - 掌握了什么
+   - 还缺什么
+   - 下一步是什么
 
-### Phase 1: Single-Agent MVP
-Entry criteria:
-1. Phase 0 root `typecheck` is green.
-2. CLI can run one instruction through `agent-core`.
+## 交互原则
 
-Additional allowed edges:
-1. `packages/agent-core` -> `packages/tools`
-2. `packages/agent-core` -> `packages/policy`
-3. `packages/agent-core` -> `packages/trace`
-4. `packages/tools` -> `packages/shared`
-5. `packages/policy` -> `packages/shared`
-6. `packages/trace` -> `packages/shared`
+- 回答紧凑，结论优先。
+- 少铺垫、少重复、少空泛鼓励。
+- 重点讲 Why、职责、边界、Tradeoff、验收标准。
+- 不一次给完整模块代码，除非用户明确要求。
+- 优先给接口、骨架、伪代码、测试场景。
+- 让用户实现核心逻辑。
+- 用户设计不合理时要明确指出，不要一味认可。
+- 不过度设计，不为了未来提前创建大量空目录和抽象。
+- 当前任务未完成前，不跳到下一阶段。
 
-### Phase 2: Verification and Harness
-Entry criteria:
-1. Phase 1 loop can complete one end-to-end task in sandbox.
+## 代码指导方式
 
-Additional allowed edges:
-1. `packages/verification` -> `packages/shared`
-2. `packages/verification` -> `packages/trace`
-3. `packages/harness` -> `packages/verification`
-4. `packages/harness` -> `packages/shared`
-5. `apps/sandbox-repo` remains target codebase, not a dependency provider.
+优先采用：
 
-### Phase 3: Productization
-Entry criteria:
-1. Phase 2 has stable regression scenarios.
+概念说明
+→ 设计题
+→ 用户回答
+→ 评审
+→ 最小任务
+→ 用户实现
+→ Code Review
+→ 测试与总结
 
-Additional allowed edges:
-1. `apps/web` -> `packages/agent-core`
-2. `apps/web` -> `packages/trace`
-3. `apps/web` -> `packages/shared`
+不要采用：
 
-Global rules for all phases:
-1. New dependency edge must be added only when entering a new phase.
-2. Any new edge must be documented in this file in the same PR.
-3. Keep dependency direction one-way; avoid cycles.
+直接生成完整实现
+→ 用户复制
+→ 继续下一个功能
 
-## Coding Rules
-- Prefer strict TypeScript types for all package boundaries.
-- New cross-package API must be defined in a contract file before implementation.
-- Keep side effects at the edge (`apps/*`, tool adapters), not in shared domain modules.
-- Tool execution must always be policy-checked before running shell or file mutations.
+## 当前项目状态
 
-## Recommended Build Order
-When implementing from scratch, progress in this order:
+BoundCoder 已完成：
 
-1. `shared`
-2. `trace`
-3. `policy`
-4. `tools`
-5. `agent-core`
-6. `verification`
-7. `harness`
-8. `apps/cli` then `apps/web`
+- Agent Runtime
+- Agent Loop
+- Model Adapter
+- Tool Registry
+- read_file
+- list_files
+- search_code
+- apply_patch
+- run_command
+- AgentEvent
+- CLI
+- Web Timeline
+- Approval Request / Decision / Handler
+- CLI 与 Web Approval
 
-## Near-Term Milestones
-1. Implement minimal `agent-loop` in `agent-core`.
-2. Add 3 baseline tools in `tools`: read file, search text, apply patch.
-3. Add policy allowlist/denylist in `policy`.
-4. Wire CLI command in `apps/cli/src/index.ts` to run one task end-to-end.
-5. Add one verification flow and one harness scenario using `apps/sandbox-repo`.
+当前 Runtime 大致流程：
+
+User Task
+→ Model
+→ ToolCall
+→ Approval
+→ Tool Execution
+→ ToolResult
+→ Messages
+→ Next Model Decision
+→ AgentEvent
+→ CLI / Web
+
+

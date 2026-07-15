@@ -39,6 +39,8 @@ export async function runAgentLoop(
 	const model = dependencies.model ?? fakeModel;
 	const toolRegistry = dependencies.toolRegistry;
 	const approvalHandler = dependencies.approvalHandler;
+	const runtimeHook = dependencies.runtimeHook;
+    
 	const runtimeId = createRuntimeId();
 	if (!toolRegistry) {
 		throw new Error("toolRegistry is required");
@@ -58,7 +60,7 @@ export async function runAgentLoop(
 		timestamp: Date.now(),
 	});
 
-	await yieldToEventLoop();
+	await yieldToEventLoop(); // 模拟异步
 
 	for (let loopCount = 0; loopCount < maxSteps; loopCount++) {
 		const modelResponse = model(messages);
@@ -90,6 +92,24 @@ export async function runAgentLoop(
 			};
 				} else if (modelResponse.kind === "tool_call" && modelResponse.toolCall) {
 					let toolResult: ToolResult;
+
+					if (runtimeHook?.onToolCall) {
+						try {
+							const payload = structuredClone({ // 快照方式保证Hook 即使强制修改参数，也不会影响 Runtime 原对象
+								runtime: {
+									runtimeId,
+									task: options.task,
+									step: loopCount + 1,
+									messages,
+								},
+								toolCall: modelResponse.toolCall,
+							});
+
+							await runtimeHook.onToolCall(payload);
+						} catch (error) {
+							console.error("[runtime-hook] onToolCall failed", error);
+						}
+					} // 快照或 Hook 失败只记录错误，不中断 Approval 和工具执行。
 
 					if (approvalHandler) {
 						emitEvent(options.onEvent, {
@@ -135,6 +155,25 @@ export async function runAgentLoop(
 					: toolResult.errorMessage ?? "tool failed",
 				toolResult,
 			});
+
+			if (runtimeHook?.onToolResult) {
+				try {
+					const payload = structuredClone({
+						runtime: {
+							runtimeId,
+							task: options.task,
+							step: loopCount + 1,
+							messages,
+						},
+						toolCall: modelResponse.toolCall,
+						toolResult,
+					});
+
+					await runtimeHook.onToolResult(payload);
+				} catch (error) {
+					console.error("[runtime-hook] onToolResult failed", error);
+				}
+			}
 
 			emitEvent(options.onEvent, {
 				type: "tool_result",
